@@ -258,7 +258,7 @@ public class DefaultCommands {
         "Reset-Intervall: " + status.resetIntervalDays + " Tage",
         "Letzter Reset: " + status.lastResetEpochSeconds,
         "Nächster Reset: " + status.nextResetEpochSeconds,
-        "Letzter Check: " + status.lastCheck), "ℹ️ ");
+        "Letzter Check: " + status.lastCheck), "[INFO] ");
   }
 
   private static String formatProtectionStatus(FarmWorldConfig config) {
@@ -285,24 +285,24 @@ public class DefaultCommands {
         ", explosion=" + actions.explosion +
         ", fire=" + actions.fireSpread +
         ", liquid=" + actions.liquid);
-    return prefixLines(lines, "ℹ️ ");
+    return prefixLines(lines, "[INFO] ");
   }
 
   private static String success(String message) {
-    return PREFIX + "✅ " + message;
+    return PREFIX + "[OK] " + message;
   }
 
   private static String info(String message) {
-    return PREFIX + "ℹ️ " + message;
+    return PREFIX + "[INFO] " + message;
   }
 
   private static String error(String message) {
-    return PREFIX + "❌ " + message;
+    return PREFIX + "[FEHLER] " + message;
   }
 
-  private static String prefixLines(List<String> lines, String emoji) {
+  private static String prefixLines(List<String> lines, String label) {
     return lines.stream()
-        .map(line -> PREFIX + emoji + line)
+        .map(line -> PREFIX + label + line)
         .collect(Collectors.joining("\n"));
   }
 
