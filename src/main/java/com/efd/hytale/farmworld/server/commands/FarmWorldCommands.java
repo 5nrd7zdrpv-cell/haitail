@@ -72,6 +72,7 @@ public final class FarmWorldCommands {
   private static final class FarmWorldRootCommand extends AbstractCommand {
     private final CommandBridge bridge;
     private final String commandName;
+    private final String adminPermission;
     private final FarmWorldService farmWorldService;
     private final FarmWorldConfig config;
     private final ProtectionService protectionService;
@@ -89,13 +90,11 @@ public final class FarmWorldCommands {
       super(name, description);
       this.commandName = name.toLowerCase(Locale.ROOT);
       this.bridge = new CommandBridge(registry);
+      this.adminPermission = adminPermission;
       this.farmWorldService = farmWorldService;
       this.config = config;
       this.protectionService = protectionService;
       this.combatService = combatService;
-      if (adminPermission != null && !adminPermission.isBlank()) {
-        requirePermission(adminPermission);
-      }
     }
 
     @Override
@@ -105,6 +104,11 @@ public final class FarmWorldCommands {
       CommandSender sender = context.sender();
       String actorId = resolveActorId(sender);
       recordPlayer(sender);
+      CommandResult permissionFailure = checkPermission(sender, raw);
+      if (permissionFailure != null) {
+        context.sendMessage(Message.raw(permissionFailure.message));
+        return CompletableFuture.completedFuture(null);
+      }
       CommandResult special = handleSpecialCommands(context, raw, actorId);
       CommandResult result = special != null ? special : bridge.handleCommand(actorId, raw);
       context.sendMessage(Message.raw(result.message));
@@ -169,6 +173,45 @@ public final class FarmWorldCommands {
         return handleProtectStatusSelf(context, parts, actorId);
       }
       return null;
+    }
+
+    private CommandResult checkPermission(CommandSender sender, String raw) {
+      if (adminPermission == null || adminPermission.isBlank()) {
+        return null;
+      }
+      String[] parts = raw.trim().split("\\s+");
+      if (parts.length < 2) {
+        return null;
+      }
+      String action = parts[1].toLowerCase(Locale.ROOT);
+      if (!requiresAdmin(action)) {
+        return null;
+      }
+      if (sender == null || sender.hasPermission(adminPermission)) {
+        return null;
+      }
+      return CommandResult.error(CommandMessages.error("Keine Berechtigung für diesen Befehl."));
+    }
+
+    private boolean requiresAdmin(String action) {
+      return switch (commandName) {
+        case "farm" -> switch (action) {
+          case "status" -> false;
+          case "reset", "setspawn" -> true;
+          default -> false;
+        };
+        case "protect" -> switch (action) {
+          case "status" -> false;
+          case "add", "remove", "list", "test" -> true;
+          default -> false;
+        };
+        case "combat" -> switch (action) {
+          case "status", "canwarp" -> false;
+          case "tag", "quit", "cleanup" -> true;
+          default -> false;
+        };
+        default -> false;
+      };
     }
 
     private CommandResult handleFarmSetSpawnSelf(CommandContext context, String[] parts, String actorId) {
