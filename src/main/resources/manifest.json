@@ -1,0 +1,10 @@
+{
+  "id": "farmworld-daemon",
+  "name": "FarmWorldDaemon",
+  "version": "0.4.1",
+  "mainClass": "com.efd.hytale.farmworld.daemon.Main",
+  "description": "Farm world reset scheduling, protection checks, and combat tagging services.",
+  "authors": [
+    "EFD"
+  ]
+}
