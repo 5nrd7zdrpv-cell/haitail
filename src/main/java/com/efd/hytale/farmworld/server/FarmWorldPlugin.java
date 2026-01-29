@@ -9,6 +9,7 @@ import com.efd.hytale.farmworld.shared.services.CombatTagService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldService;
 import com.efd.hytale.farmworld.shared.services.ProtectionService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldWorldAdapter;
+import com.efd.hytale.farmworld.server.commands.FarmWorldCommands;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import java.util.List;
@@ -67,6 +68,13 @@ public class FarmWorldPlugin extends JavaPlugin {
     CommandRegistry registry = new CommandRegistry();
     new DefaultCommands().register(registry, farmWorldService, combatService, protectionService, config);
     commandBridge = new CommandBridge(registry);
+    String adminPermission = getBasePermission() + ".admin";
+    getCommandRegistry().registerCommand(FarmWorldCommands.createFarmCommand(registry, adminPermission));
+    logger.info("Registered root command: farm.");
+    getCommandRegistry().registerCommand(FarmWorldCommands.createProtectCommand(registry, adminPermission));
+    logger.info("Registered root command: protect.");
+    getCommandRegistry().registerCommand(FarmWorldCommands.createCombatCommand(registry, adminPermission));
+    logger.info("Registered root command: combat.");
     String commandList = registry.all().stream()
         .map(command -> command.name)
         .collect(Collectors.joining(", "));
