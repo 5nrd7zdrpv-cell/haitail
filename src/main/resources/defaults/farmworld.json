@@ -33,7 +33,7 @@
   },
   "combat": {
     "enabled": true,
-    "tagSeconds": 20,
+    "tagSeconds": 15,
     "onQuit": "NONE",
     "penaltySeconds": 30
   }

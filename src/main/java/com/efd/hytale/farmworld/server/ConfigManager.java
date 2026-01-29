@@ -48,19 +48,19 @@ public class ConfigManager {
       Files.createDirectories(overridePath.getParent());
       Files.writeString(overridePath, gson.toJson(json), StandardCharsets.UTF_8);
     } catch (IOException ex) {
-      throw new RuntimeException("Failed to write config to " + overridePath.toAbsolutePath(), ex);
+      throw new RuntimeException("Konnte Konfiguration nicht schreiben: " + overridePath.toAbsolutePath(), ex);
     }
   }
 
   private JsonObject loadDefaults() {
     try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(DEFAULT_CONFIG_PATH)) {
       if (inputStream == null) {
-        logger.warning("Default config not found: " + DEFAULT_CONFIG_PATH + ". Using empty defaults.");
+        logger.warning("[FarmWorld] Standardkonfiguration nicht gefunden: " + DEFAULT_CONFIG_PATH + ". Verwende leere Defaults.");
         return new JsonObject();
       }
       return JsonParser.parseReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).getAsJsonObject();
     } catch (IOException ex) {
-      logger.log(Level.WARNING, "Failed to read default config; using empty defaults.", ex);
+      logger.log(Level.WARNING, "[FarmWorld] Standardkonfiguration konnte nicht gelesen werden; verwende leere Defaults.", ex);
       return new JsonObject();
     }
   }
@@ -68,13 +68,13 @@ public class ConfigManager {
   private JsonObject loadOverrides() {
     Path overridePath = Path.of(OVERRIDE_CONFIG_PATH);
     if (!Files.exists(overridePath)) {
-      logger.info("No override config found at " + overridePath.toAbsolutePath());
+      logger.info("[FarmWorld] Keine Override-Konfiguration gefunden: " + overridePath.toAbsolutePath());
       return new JsonObject();
     }
     try (InputStream inputStream = Files.newInputStream(overridePath)) {
       return JsonParser.parseReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).getAsJsonObject();
     } catch (IOException ex) {
-      logger.log(Level.WARNING, "Failed to read override config; ignoring overrides.", ex);
+      logger.log(Level.WARNING, "[FarmWorld] Override-Konfiguration konnte nicht gelesen werden; ignoriere Overrides.", ex);
       return new JsonObject();
     }
   }

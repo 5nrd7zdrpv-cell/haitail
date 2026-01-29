@@ -22,7 +22,7 @@ public class AsyncConfigStore implements FarmWorldConfigStore {
       try {
         configManager.save(config);
       } catch (RuntimeException ex) {
-        logger.warning("Failed to persist farmworld config: " + ex.getMessage());
+        logger.warning("[FarmWorld] Speichern der Farmwelt-Konfiguration fehlgeschlagen: " + ex.getMessage());
       }
     });
   }

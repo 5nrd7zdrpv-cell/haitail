@@ -15,7 +15,7 @@ public class CommandBridge {
 
   public CommandResult handleCommand(String actorId, String rawCommand) {
     if (rawCommand == null || rawCommand.isBlank()) {
-      return CommandResult.error("Empty command.");
+      return CommandResult.error("[FarmWorld] Leerer Befehl.");
     }
     String trimmed = rawCommand.trim();
     String[] parts = trimmed.split("\\s+");

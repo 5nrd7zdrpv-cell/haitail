@@ -83,6 +83,10 @@ public class FarmWorldService {
     return config.farmWorld.spawn;
   }
 
+  public FarmWorldSpawn resolveSpawn() {
+    return resolveSpawn(config.farmWorld.spawn);
+  }
+
   private void ensureNextResetScheduled() {
     if (config.nextResetEpochSeconds > 0L) {
       return;
@@ -97,28 +101,28 @@ public class FarmWorldService {
       return;
     }
     Instant nextReset = Instant.ofEpochSecond(config.nextResetEpochSeconds);
-    logger.info("Next reset scheduled at " + nextReset + " (interval=" +
-        config.farmWorld.resetIntervalDays + " days).");
+    logger.info("[FarmWorld] Nächster Reset geplant: " + nextReset + " (Intervall=" +
+        config.farmWorld.resetIntervalDays + " Tage).");
   }
 
   private void resetWorld(Instant now) {
     if (logger != null) {
-      logger.info("Reset triggered");
+      logger.info("[FarmWorld] Farmwelt wird zurückgesetzt...");
     }
     boolean resetOk = worldAdapter.resetWorld(config.farmWorld.worldId, config.farmWorld.instanceId);
     if (resetOk && logger != null) {
-      logger.info("World reset ok");
+      logger.info("[FarmWorld] Farmwelt wurde entladen/zurückgesetzt.");
     }
     if (resetOk) {
       if (config.farmWorld.prefabSpawnId == null || config.farmWorld.prefabSpawnId.isBlank()) {
         if (logger != null) {
-          logger.severe("prefabSpawnId is blank; skipping prefab load.");
+          logger.severe("[FarmWorld] prefabSpawnId ist leer; Prefab-Laden wird übersprungen.");
         }
       } else {
         FarmWorldSpawn spawn = resolveSpawn(config.farmWorld.spawn);
         boolean prefabLoaded = worldAdapter.loadPrefab(config.farmWorld.prefabSpawnId, spawn);
         if (prefabLoaded && logger != null) {
-          logger.info("Prefab loaded");
+          logger.info("[FarmWorld] Prefab geladen");
         }
       }
     }
@@ -127,6 +131,9 @@ public class FarmWorldService {
     config.nextResetEpochSeconds = nextReset.getEpochSecond();
     configStore.save(config);
     logNextReset();
+    if (logger != null) {
+      logger.info("[FarmWorld] Reset abgeschlossen");
+    }
   }
 
   private FarmWorldSpawn resolveSpawn(FarmWorldSpawn spawn) {

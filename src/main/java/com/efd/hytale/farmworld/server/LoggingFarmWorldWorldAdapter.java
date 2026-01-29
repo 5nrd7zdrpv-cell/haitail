@@ -13,13 +13,13 @@ public class LoggingFarmWorldWorldAdapter implements FarmWorldWorldAdapter {
 
   @Override
   public boolean resetWorld(String worldId, String instanceId) {
-    logger.info("Requesting reset for world " + worldId + "/" + instanceId + ".");
+    logger.info("[FarmWorld] Anfrage zum Zurücksetzen der Welt " + worldId + "/" + instanceId + ".");
     return true;
   }
 
   @Override
   public boolean loadPrefab(String prefabSpawnId, FarmWorldSpawn spawnPosition) {
-    logger.info("Loading prefab " + prefabSpawnId + " at " +
+    logger.info("[FarmWorld] Lade Prefab " + prefabSpawnId + " bei " +
         spawnPosition.worldId + "/" + spawnPosition.instanceId +
         " (" + spawnPosition.x + ", " + spawnPosition.y + ", " + spawnPosition.z + ").");
     return true;

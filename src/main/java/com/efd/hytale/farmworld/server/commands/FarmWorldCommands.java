@@ -2,6 +2,10 @@ package com.efd.hytale.farmworld.server.commands;
 
 import com.efd.hytale.farmworld.shared.commands.CommandRegistry;
 import com.efd.hytale.farmworld.shared.commands.CommandResult;
+import com.efd.hytale.farmworld.shared.config.FarmWorldConfig;
+import com.efd.hytale.farmworld.shared.config.FarmWorldSpawn;
+import com.efd.hytale.farmworld.shared.services.CombatTagService;
+import com.efd.hytale.farmworld.shared.services.FarmWorldService;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
@@ -9,8 +13,13 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredAr
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.math.vector.Vector3d;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public final class FarmWorldCommands {
@@ -18,20 +27,24 @@ public final class FarmWorldCommands {
 
   public static AbstractCommandCollection createFarmCommand(
       CommandRegistry registry,
-      String adminPermission) {
-    return new FarmCommand(registry, adminPermission);
+      String adminPermission,
+      FarmWorldService farmWorldService,
+      FarmWorldConfig config) {
+    return new FarmCommand(registry, adminPermission, farmWorldService, config);
   }
 
   public static AbstractCommandCollection createProtectCommand(
       CommandRegistry registry,
-      String adminPermission) {
-    return new ProtectCommand(registry, adminPermission);
+      String adminPermission,
+      FarmWorldConfig config) {
+    return new ProtectCommand(registry, adminPermission, config);
   }
 
   public static AbstractCommandCollection createCombatCommand(
       CommandRegistry registry,
-      String adminPermission) {
-    return new CombatCommand(registry, adminPermission);
+      String adminPermission,
+      CombatTagService combatService) {
+    return new CombatCommand(registry, adminPermission, combatService);
   }
 
   private static String actorId(CommandContext context) {
@@ -44,11 +57,15 @@ public final class FarmWorldCommands {
   }
 
   private static final class FarmCommand extends AbstractCommandCollection {
-    FarmCommand(CommandRegistry registry, String adminPermission) {
-      super("farm", "Farm world status and reset commands.");
+    FarmCommand(
+        CommandRegistry registry,
+        String adminPermission,
+        FarmWorldService farmWorldService,
+        FarmWorldConfig config) {
+      super("farm", "Farmwelt-Status und Reset-Befehle.");
       addSubCommand(new FarmStatusCommand(registry));
       addSubCommand(new FarmResetCommand(registry, adminPermission));
-      addSubCommand(new FarmSetSpawnCommand(registry, adminPermission));
+      addSubCommand(new FarmSetSpawnCommand(adminPermission, farmWorldService, config));
     }
   }
 
@@ -56,7 +73,7 @@ public final class FarmWorldCommands {
     private final CommandRegistry registry;
 
     FarmStatusCommand(CommandRegistry registry) {
-      super("status", "Show farm world status.");
+      super("status", "Zeigt den Farmwelt-Status.");
       this.registry = registry;
     }
 
@@ -69,7 +86,7 @@ public final class FarmWorldCommands {
 
   private static final class FarmResetCommand extends AbstractCommandCollection {
     FarmResetCommand(CommandRegistry registry, String adminPermission) {
-      super("reset", "Reset the farm world.");
+      super("reset", "Setzt die Farmwelt zurück.");
       addSubCommand(new FarmResetNowCommand(registry, adminPermission));
       addSubCommand(new FarmResetScheduleCommand(registry, adminPermission));
     }
@@ -79,7 +96,7 @@ public final class FarmWorldCommands {
     private final CommandRegistry registry;
 
     FarmResetNowCommand(CommandRegistry registry, String adminPermission) {
-      super("now", "Reset the farm world immediately.");
+      super("now", "Setzt die Farmwelt sofort zurück.");
       this.registry = registry;
       requirePermission(adminPermission);
     }
@@ -95,7 +112,7 @@ public final class FarmWorldCommands {
     private final CommandRegistry registry;
 
     FarmResetScheduleCommand(CommandRegistry registry, String adminPermission) {
-      super("schedule", "Schedule the next farm world reset.");
+      super("schedule", "Plant den nächsten Farmwelt-Reset.");
       this.registry = registry;
       requirePermission(adminPermission);
     }
@@ -108,62 +125,129 @@ public final class FarmWorldCommands {
   }
 
   private static final class FarmSetSpawnCommand extends CommandBase {
-    private final CommandRegistry registry;
-    private final RequiredArg<Double> xArg;
-    private final RequiredArg<Double> yArg;
-    private final RequiredArg<Double> zArg;
+    private final FarmWorldService farmWorldService;
+    private final FarmWorldConfig config;
+    private final RequiredArg<String> selfOrXArg;
+    private final OptionalArg<Double> yArg;
+    private final OptionalArg<Double> zArg;
     private final OptionalArg<String> worldIdArg;
     private final OptionalArg<String> instanceIdArg;
 
-    FarmSetSpawnCommand(CommandRegistry registry, String adminPermission) {
-      super("setspawn", "Set the farm world spawn.");
-      this.registry = registry;
+    FarmSetSpawnCommand(
+        String adminPermission,
+        FarmWorldService farmWorldService,
+        FarmWorldConfig config) {
+      super("setspawn", "Setzt den Farmwelt-Spawn.");
+      this.farmWorldService = farmWorldService;
+      this.config = config;
       requirePermission(adminPermission);
-      xArg = withRequiredArg("x", "Spawn X", ArgTypes.DOUBLE);
-      yArg = withRequiredArg("y", "Spawn Y", ArgTypes.DOUBLE);
-      zArg = withRequiredArg("z", "Spawn Z", ArgTypes.DOUBLE);
-      worldIdArg = withOptionalArg("worldId", "World Id", ArgTypes.STRING);
-      instanceIdArg = withOptionalArg("instanceId", "Instance Id", ArgTypes.STRING);
+      selfOrXArg = withRequiredArg("self|x", "self oder X", ArgTypes.STRING);
+      yArg = withOptionalArg("y", "Spawn Y", ArgTypes.DOUBLE);
+      zArg = withOptionalArg("z", "Spawn Z", ArgTypes.DOUBLE);
+      worldIdArg = withOptionalArg("worldId", "Welt-Id", ArgTypes.STRING);
+      instanceIdArg = withOptionalArg("instanceId", "Instanz-Id", ArgTypes.STRING);
     }
 
     @Override
     protected void executeSync(CommandContext context) {
-      List<String> args = new ArrayList<>();
-      args.add("setspawn");
-      args.add(String.valueOf(context.get(xArg)));
-      args.add(String.valueOf(context.get(yArg)));
-      args.add(String.valueOf(context.get(zArg)));
+      String firstArg = context.get(selfOrXArg);
+      if ("self".equalsIgnoreCase(firstArg)) {
+        if (!context.isPlayer()) {
+          context.sendMessage(Message.raw(prefix("Nur Spieler können /farm setspawn self verwenden.")));
+          return;
+        }
+        Player player = context.senderAs(Player.class);
+        TransformComponent transform = player.getTransformComponent();
+        if (transform == null || transform.getPosition() == null) {
+          context.sendMessage(Message.raw(prefix("Position konnte nicht ermittelt werden.")));
+          return;
+        }
+        Vector3d position = transform.getPosition();
+        FarmWorldSpawn spawn = new FarmWorldSpawn();
+        spawn.x = position.x;
+        spawn.y = position.y;
+        spawn.z = position.z;
+        spawn.worldId = player.getWorld() != null ? player.getWorld().getName() : config.farmWorld.worldId;
+        spawn.instanceId = config.farmWorld.instanceId;
+        farmWorldService.updateSpawn(spawn);
+        context.sendMessage(Message.raw(prefix("Spawn gespeichert: " +
+            formatCoordinate(spawn.x) + " " + formatCoordinate(spawn.y) + " " + formatCoordinate(spawn.z) + ".")));
+        return;
+      }
+      if (!context.provided(yArg) || !context.provided(zArg)) {
+        context.sendMessage(Message.raw(prefix("Nutzung: /farm setspawn <x> <y> <z> [worldId] [instanceId]")));
+        return;
+      }
+      double x;
+      try {
+        x = Double.parseDouble(firstArg);
+      } catch (NumberFormatException ex) {
+        context.sendMessage(Message.raw(prefix("X muss eine Zahl sein oder 'self'.")));
+        return;
+      }
+      double y = context.get(yArg);
+      double z = context.get(zArg);
+      FarmWorldSpawn currentSpawn = farmWorldService.getSpawn();
+      FarmWorldSpawn spawn = new FarmWorldSpawn();
+      spawn.x = x;
+      spawn.y = y;
+      spawn.z = z;
       if (context.provided(worldIdArg)) {
-        args.add(context.get(worldIdArg));
+        spawn.worldId = context.get(worldIdArg);
+      } else if (currentSpawn != null) {
+        spawn.worldId = currentSpawn.worldId;
       }
       if (context.provided(instanceIdArg)) {
-        args.add(context.get(instanceIdArg));
+        spawn.instanceId = context.get(instanceIdArg);
+      } else if (currentSpawn != null) {
+        spawn.instanceId = currentSpawn.instanceId;
       }
-      CommandResult result = registry.execute(actorId(context), "farm", args);
-      sendResult(context, result);
+      farmWorldService.updateSpawn(spawn);
+      context.sendMessage(Message.raw(prefix("Spawn gespeichert: " +
+          formatCoordinate(spawn.x) + " " + formatCoordinate(spawn.y) + " " + formatCoordinate(spawn.z) + ".")));
     }
   }
 
   private static final class ProtectCommand extends AbstractCommandCollection {
-    ProtectCommand(CommandRegistry registry, String adminPermission) {
-      super("protect", "Protection zone status and test.");
-      addSubCommand(new ProtectStatusCommand(registry));
+    ProtectCommand(CommandRegistry registry, String adminPermission, FarmWorldConfig config) {
+      super("protect", "Schutzzone-Status und Test.");
+      addSubCommand(new ProtectStatusCommand(config));
       addSubCommand(new ProtectTestCommand(registry, adminPermission));
     }
   }
 
   private static final class ProtectStatusCommand extends CommandBase {
-    private final CommandRegistry registry;
+    private final FarmWorldConfig config;
 
-    ProtectStatusCommand(CommandRegistry registry) {
-      super("status", "Show protection status.");
-      this.registry = registry;
+    ProtectStatusCommand(FarmWorldConfig config) {
+      super("status", "Zeigt den Schutzstatus.");
+      this.config = config;
     }
 
     @Override
     protected void executeSync(CommandContext context) {
-      CommandResult result = registry.execute(actorId(context), "protect", List.of("status"));
-      sendResult(context, result);
+      if (!context.isPlayer()) {
+        context.sendMessage(Message.raw(prefix("Nur Spieler können den Schutzstatus abfragen.")));
+        return;
+      }
+      Player player = context.senderAs(Player.class);
+      TransformComponent transform = player.getTransformComponent();
+      Vector3d position = transform != null ? transform.getPosition() : null;
+      if (position == null) {
+        context.sendMessage(Message.raw(prefix("Position konnte nicht ermittelt werden.")));
+        return;
+      }
+      FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
+      double distance = distance(center.x, center.y, center.z, position.x, position.y, position.z);
+      String status = config.protection.enabled ? "aktiv" : "deaktiviert";
+      boolean inside = distance <= config.protection.radius;
+      List<String> lines = List.of(
+          prefix("Schutz: " + status),
+          prefix("Radius: " + config.protection.radius),
+          prefix("Zentrum: " + formatCoordinate(center.x) + " " + formatCoordinate(center.y) + " " + formatCoordinate(center.z)),
+          prefix("Deine Entfernung: " + Math.round(distance) + " Blöcke (" +
+              (inside ? "INNERHALB" : "AUSSERHALB") + ")"));
+      context.sendMessage(Message.raw(String.join("\n", lines)));
     }
   }
 
@@ -176,13 +260,13 @@ public final class FarmWorldCommands {
     private final OptionalArg<Boolean> bypassArg;
 
     ProtectTestCommand(CommandRegistry registry, String adminPermission) {
-      super("test", "Test a protection action.");
+      super("test", "Testet eine Schutzaktion.");
       this.registry = registry;
       requirePermission(adminPermission);
-      actionArg = withRequiredArg("action", "Protection action", ArgTypes.STRING);
-      xArg = withRequiredArg("x", "X coordinate", ArgTypes.DOUBLE);
-      yArg = withRequiredArg("y", "Y coordinate", ArgTypes.DOUBLE);
-      zArg = withRequiredArg("z", "Z coordinate", ArgTypes.DOUBLE);
+      actionArg = withRequiredArg("action", "Schutzaktion", ArgTypes.STRING);
+      xArg = withRequiredArg("x", "X-Koordinate", ArgTypes.DOUBLE);
+      yArg = withRequiredArg("y", "Y-Koordinate", ArgTypes.DOUBLE);
+      zArg = withRequiredArg("z", "Z-Koordinate", ArgTypes.DOUBLE);
       bypassArg = withOptionalArg("bypass", "Bypass", ArgTypes.BOOLEAN);
     }
 
@@ -203,24 +287,26 @@ public final class FarmWorldCommands {
   }
 
   private static final class CombatCommand extends AbstractCommandCollection {
-    CombatCommand(CommandRegistry registry, String adminPermission) {
-      super("combat", "Combat tag diagnostics and admin helpers.");
-      addSubCommand(new CombatStatusCommand(registry));
-      addSubCommand(new CombatCanWarpCommand(registry));
-      addSubCommand(new CombatTagCommand(registry, adminPermission));
+    CombatCommand(CommandRegistry registry, String adminPermission, CombatTagService combatService) {
+      super("combat", "Kampfstatus und Admin-Werkzeuge.");
+      addSubCommand(new CombatStatusCommand(registry, combatService));
+      addSubCommand(new CombatCanWarpCommand(registry, combatService));
+      addSubCommand(new CombatTagCommand(registry, adminPermission, combatService));
       addSubCommand(new CombatCleanupCommand(registry, adminPermission));
-      addSubCommand(new CombatQuitCommand(registry, adminPermission));
+      addSubCommand(new CombatQuitCommand(registry, adminPermission, combatService));
     }
   }
 
   private static final class CombatStatusCommand extends CommandBase {
     private final CommandRegistry registry;
-    private final OptionalArg<String> targetArg;
+    private final CombatTagService combatService;
+    private final OptionalArg<PlayerRef> targetArg;
 
-    CombatStatusCommand(CommandRegistry registry) {
-      super("status", "Check combat tag status.");
+    CombatStatusCommand(CommandRegistry registry, CombatTagService combatService) {
+      super("status", "Prüft den Kampfstatus.");
       this.registry = registry;
-      targetArg = withOptionalArg("playerId", "Player Id", ArgTypes.STRING);
+      this.combatService = combatService;
+      targetArg = withOptionalArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
     }
 
     @Override
@@ -228,7 +314,9 @@ public final class FarmWorldCommands {
       List<String> args = new ArrayList<>();
       args.add("status");
       if (context.provided(targetArg)) {
-        args.add(context.get(targetArg));
+        PlayerRef target = context.get(targetArg);
+        combatService.recordPlayer(target.getUuid(), target.getUsername());
+        args.add(target.getUuid().toString());
       }
       CommandResult result = registry.execute(actorId(context), "combat", args);
       sendResult(context, result);
@@ -237,12 +325,14 @@ public final class FarmWorldCommands {
 
   private static final class CombatCanWarpCommand extends CommandBase {
     private final CommandRegistry registry;
-    private final OptionalArg<String> targetArg;
+    private final CombatTagService combatService;
+    private final OptionalArg<PlayerRef> targetArg;
 
-    CombatCanWarpCommand(CommandRegistry registry) {
-      super("canwarp", "Check if a player can warp.");
+    CombatCanWarpCommand(CommandRegistry registry, CombatTagService combatService) {
+      super("canwarp", "Prüft, ob ein Spieler warpen darf.");
       this.registry = registry;
-      targetArg = withOptionalArg("playerId", "Player Id", ArgTypes.STRING);
+      this.combatService = combatService;
+      targetArg = withOptionalArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
     }
 
     @Override
@@ -250,7 +340,9 @@ public final class FarmWorldCommands {
       List<String> args = new ArrayList<>();
       args.add("canwarp");
       if (context.provided(targetArg)) {
-        args.add(context.get(targetArg));
+        PlayerRef target = context.get(targetArg);
+        combatService.recordPlayer(target.getUuid(), target.getUsername());
+        args.add(target.getUuid().toString());
       }
       CommandResult result = registry.execute(actorId(context), "combat", args);
       sendResult(context, result);
@@ -259,24 +351,28 @@ public final class FarmWorldCommands {
 
   private static final class CombatTagCommand extends CommandBase {
     private final CommandRegistry registry;
-    private final RequiredArg<String> targetArg;
+    private final CombatTagService combatService;
+    private final RequiredArg<PlayerRef> targetArg;
     private final OptionalArg<Integer> secondsArg;
     private final OptionalArg<List<String>> reasonArg;
 
-    CombatTagCommand(CommandRegistry registry, String adminPermission) {
-      super("tag", "Apply a combat tag.");
+    CombatTagCommand(CommandRegistry registry, String adminPermission, CombatTagService combatService) {
+      super("tag", "Setzt ein Kampftag.");
       this.registry = registry;
+      this.combatService = combatService;
       requirePermission(adminPermission);
-      targetArg = withRequiredArg("playerId", "Player Id", ArgTypes.STRING);
-      secondsArg = withOptionalArg("seconds", "Seconds", ArgTypes.INTEGER);
-      reasonArg = withListOptionalArg("reason", "Reason", ArgTypes.STRING);
+      targetArg = withRequiredArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
+      secondsArg = withOptionalArg("seconds", "Sekunden", ArgTypes.INTEGER);
+      reasonArg = withListOptionalArg("reason", "Grund", ArgTypes.STRING);
     }
 
     @Override
     protected void executeSync(CommandContext context) {
       List<String> args = new ArrayList<>();
       args.add("tag");
-      args.add(context.get(targetArg));
+      PlayerRef target = context.get(targetArg);
+      combatService.recordPlayer(target.getUuid(), target.getUsername());
+      args.add(target.getUuid().toString());
       if (context.provided(secondsArg)) {
         args.add(String.valueOf(context.get(secondsArg)));
       }
@@ -292,7 +388,7 @@ public final class FarmWorldCommands {
     private final CommandRegistry registry;
 
     CombatCleanupCommand(CommandRegistry registry, String adminPermission) {
-      super("cleanup", "Clear all combat tags.");
+      super("cleanup", "Entfernt alle Kampftags.");
       this.registry = registry;
       requirePermission(adminPermission);
     }
@@ -306,22 +402,45 @@ public final class FarmWorldCommands {
 
   private static final class CombatQuitCommand extends CommandBase {
     private final CommandRegistry registry;
-    private final RequiredArg<String> targetArg;
+    private final CombatTagService combatService;
+    private final RequiredArg<PlayerRef> targetArg;
 
-    CombatQuitCommand(CommandRegistry registry, String adminPermission) {
-      super("quit", "Clear a combat tag for a player.");
+    CombatQuitCommand(CommandRegistry registry, String adminPermission, CombatTagService combatService) {
+      super("quit", "Entfernt ein Kampftag von einem Spieler.");
       this.registry = registry;
+      this.combatService = combatService;
       requirePermission(adminPermission);
-      targetArg = withRequiredArg("playerId", "Player Id", ArgTypes.STRING);
+      targetArg = withRequiredArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
     }
 
     @Override
     protected void executeSync(CommandContext context) {
       List<String> args = new ArrayList<>();
       args.add("quit");
-      args.add(context.get(targetArg));
+      PlayerRef target = context.get(targetArg);
+      combatService.recordPlayer(target.getUuid(), target.getUsername());
+      args.add(target.getUuid().toString());
       CommandResult result = registry.execute(actorId(context), "combat", args);
       sendResult(context, result);
     }
+  }
+
+  private static String prefix(String message) {
+    return "[FarmWorld] " + message;
+  }
+
+  private static String formatCoordinate(double value) {
+    long rounded = Math.round(value);
+    if (Math.abs(value - rounded) < 0.0001) {
+      return String.valueOf(rounded);
+    }
+    return String.format(Locale.ROOT, "%.2f", value);
+  }
+
+  private static double distance(double ax, double ay, double az, double bx, double by, double bz) {
+    double dx = ax - bx;
+    double dy = ay - by;
+    double dz = az - bz;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 }
