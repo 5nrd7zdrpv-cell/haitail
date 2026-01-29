@@ -16,11 +16,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class FarmWorldPlugin extends JavaPlugin {
   private final Logger logger = Logger.getLogger(FarmWorldPlugin.class.getName());
 
   private ScheduledExecutorService executorService;
+  private FarmWorldConfig config;
   private FarmWorldService farmWorldService;
   private CombatTagService combatService;
   private ProtectionService protectionService;
@@ -36,7 +38,7 @@ public class FarmWorldPlugin extends JavaPlugin {
   public void setup() {
     logger.info("Setting up FarmWorld plugin...");
     ConfigManager configManager = new ConfigManager(logger);
-    FarmWorldConfig config = configManager.load();
+    config = configManager.load();
     for (String issue : ConfigValidator.validateSevere(config)) {
       logger.severe(issue);
     }
@@ -56,16 +58,19 @@ public class FarmWorldPlugin extends JavaPlugin {
     combatBridge = new CombatBridge(combatService, logger);
     protectionBridge = new ProtectionBridge(config, protectionService);
 
-    CommandRegistry registry = new CommandRegistry();
-    new DefaultCommands().register(registry, farmWorldService, combatService);
-    commandBridge = new CommandBridge(registry);
-
     logger.info("FarmWorld plugin setup complete.");
   }
 
   @Override
   public void start() {
     logger.info("Starting FarmWorld plugin...");
+    CommandRegistry registry = new CommandRegistry();
+    new DefaultCommands().register(registry, farmWorldService, combatService, protectionService, config);
+    commandBridge = new CommandBridge(registry);
+    String commandList = registry.all().stream()
+        .map(command -> command.name)
+        .collect(Collectors.joining(", "));
+    logger.info("Registered FarmWorld commands: " + commandList + ".");
     if (farmWorldService != null) {
       farmWorldService.start();
     }

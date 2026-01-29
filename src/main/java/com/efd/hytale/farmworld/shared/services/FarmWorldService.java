@@ -63,6 +63,17 @@ public class FarmWorldService {
         lastCheck);
   }
 
+  public void resetNow() {
+    resetWorld(Instant.now());
+  }
+
+  public Instant scheduleNextReset() {
+    Instant nextReset = Instant.now().plus(Duration.ofDays(config.farmWorld.resetIntervalDays));
+    config.nextResetEpochSeconds = nextReset.getEpochSecond();
+    configStore.save(config);
+    return nextReset;
+  }
+
   public void updateSpawn(FarmWorldSpawn spawn) {
     config.farmWorld.spawn = spawn;
     configStore.save(config);

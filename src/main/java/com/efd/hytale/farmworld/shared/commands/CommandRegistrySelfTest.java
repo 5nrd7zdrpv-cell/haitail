@@ -6,6 +6,7 @@ import com.efd.hytale.farmworld.shared.services.CombatTagService;
 import com.efd.hytale.farmworld.shared.config.FarmWorldConfigStore;
 import com.efd.hytale.farmworld.shared.services.FarmWorldService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldWorldAdapter;
+import com.efd.hytale.farmworld.shared.services.ProtectionService;
 import com.efd.hytale.farmworld.shared.util.Scheduler;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,15 +48,20 @@ public final class CommandRegistrySelfTest {
         worldAdapter,
         null);
     CombatTagService combatService = new CombatTagService(new CombatConfig());
-    new DefaultCommands().register(registry, farmWorldService, combatService);
+    ProtectionService protectionService = new ProtectionService(config.protection, null);
+    new DefaultCommands().register(registry, farmWorldService, combatService, protectionService, config);
 
-    CommandResult statusResult = registry.execute("tester", "fwstatus", List.of());
+    CommandResult statusResult = registry.execute("tester", "farm", List.of("status"));
     if (!statusResult.success) {
-      issues.add("fwstatus failed: " + statusResult.message);
+      issues.add("farm status failed: " + statusResult.message);
     }
     CommandResult combatResult = registry.execute("tester", "combat", List.of("status"));
     if (!combatResult.success) {
       issues.add("combat failed: " + combatResult.message);
+    }
+    CommandResult protectResult = registry.execute("tester", "protect", List.of("status"));
+    if (!protectResult.success) {
+      issues.add("protect failed: " + protectResult.message);
     }
     return issues;
   }
