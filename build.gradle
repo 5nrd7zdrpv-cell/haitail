@@ -1,37 +1,35 @@
 plugins {
   id 'java'
-  id 'application'
 }
 
 group = 'com.efd.hytale'
 version = '0.4.1'
 
 java {
-  toolchain { languageVersion = JavaLanguageVersion.of(17) }
+  toolchain { languageVersion = JavaLanguageVersion.of(21) }
 }
 
 repositories { mavenCentral() }
 
 dependencies {
+  compileOnly files('libs/HytaleServer.jar')
   implementation 'com.google.code.gson:gson:2.11.0'
+  testImplementation 'org.junit.jupiter:junit-jupiter:5.11.2'
 }
 
-application {
-  mainClass = 'com.efd.hytale.farmworld.daemon.Main'
+test {
+  useJUnitPlatform()
 }
-
 
 tasks.withType(Copy).configureEach {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.withType(Jar).configureEach {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    manifest {
-        attributes(
-            'Implementation-Title': 'FarmWorldDaemon',
-            'Implementation-Version': project.version,
-            'Main-Class': application.mainClass.get()
-        )
-    }
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.register('packagePlugin', Copy) {
+  from tasks.named('jar')
+  into layout.buildDirectory.dir('dist')
 }
