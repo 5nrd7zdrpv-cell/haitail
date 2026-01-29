@@ -67,8 +67,8 @@ public final class ConfigValidator {
       config.protection.bypassPermissions = java.util.List.of();
     }
     if (config.protection.bypassPermission == null) {
-      warnings.add("protection.bypassPermission missing; defaulting to efd.farmworld.admin.");
-      config.protection.bypassPermission = "efd.farmworld.admin";
+      warnings.add("protection.bypassPermission missing; defaulting to farmworld.admin.");
+      config.protection.bypassPermission = "farmworld.admin";
     }
     if (config.protection.actions == null) {
       warnings.add("protection.actions missing; defaults applied.");

@@ -68,12 +68,13 @@ public class FarmWorldPlugin extends JavaPlugin {
     CommandRegistry registry = new CommandRegistry();
     new DefaultCommands().register(registry, farmWorldService, combatService, protectionService, config);
     commandBridge = new CommandBridge(registry);
-    String adminPermission = getBasePermission() + ".admin";
-    getCommandRegistry().registerCommand(FarmWorldCommands.createFarmCommand(registry, adminPermission));
+    String usePermission = "farmworld.use";
+    String adminPermission = "farmworld.admin";
+    getCommandRegistry().registerCommand(FarmWorldCommands.createFarmCommand(registry, usePermission, adminPermission));
     logger.info("Registered root command: farm.");
-    getCommandRegistry().registerCommand(FarmWorldCommands.createProtectCommand(registry, adminPermission));
+    getCommandRegistry().registerCommand(FarmWorldCommands.createProtectCommand(registry, usePermission, adminPermission));
     logger.info("Registered root command: protect.");
-    getCommandRegistry().registerCommand(FarmWorldCommands.createCombatCommand(registry, adminPermission));
+    getCommandRegistry().registerCommand(FarmWorldCommands.createCombatCommand(registry, usePermission, adminPermission));
     logger.info("Registered root command: combat.");
     String commandList = registry.all().stream()
         .map(command -> command.name)
