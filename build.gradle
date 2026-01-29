@@ -27,4 +27,11 @@ tasks.withType(Copy).configureEach {
 
 tasks.withType(Jar).configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(
+            'Implementation-Title': 'FarmWorldDaemon',
+            'Implementation-Version': project.version,
+            'Main-Class': application.mainClass.get()
+        )
+    }
 }
