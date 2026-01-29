@@ -23,6 +23,7 @@ public final class CombatService {
 
     /** Tag player in combat for configured seconds or overrideSeconds if > 0. */
     public void tag(String playerId, String reason, int overrideSeconds) {
+        if (!isValidPlayerId(playerId)) return;
         FarmWorldConfig c = cfg.get();
         if (c == null || c.combat == null || !c.combat.enabled) return;
 
@@ -44,6 +45,7 @@ public final class CombatService {
     }
 
     public boolean isInCombat(String playerId) {
+        if (!isValidPlayerId(playerId)) return false;
         cleanupIfExpired(playerId);
         CombatState s = states.get(playerId);
         if (s == null) return false;
@@ -52,6 +54,7 @@ public final class CombatService {
     }
 
     public int getRemainingSeconds(String playerId) {
+        if (!isValidPlayerId(playerId)) return 0;
         cleanupIfExpired(playerId);
         CombatState s = states.get(playerId);
         if (s == null) return 0;
@@ -61,6 +64,7 @@ public final class CombatService {
     }
 
     public boolean hasPenalty(String playerId) {
+        if (!isValidPlayerId(playerId)) return false;
         cleanupIfExpired(playerId);
         CombatState s = states.get(playerId);
         if (s == null) return false;
@@ -69,6 +73,7 @@ public final class CombatService {
     }
 
     public int getPenaltyRemainingSeconds(String playerId) {
+        if (!isValidPlayerId(playerId)) return 0;
         cleanupIfExpired(playerId);
         CombatState s = states.get(playerId);
         if (s == null) return 0;
@@ -89,6 +94,7 @@ public final class CombatService {
      * - PENALTY: sets penalty timer that warp-system can enforce
      */
     public String onPlayerQuit(String playerId) {
+        if (!isValidPlayerId(playerId)) return "invalid player id";
         FarmWorldConfig c = cfg.get();
         if (c == null || c.combat == null || !c.combat.enabled) return "combat disabled";
         if (!isInCombat(playerId)) return "not in combat";
@@ -138,7 +144,14 @@ public final class CombatService {
     }
 
     public CombatState getState(String playerId) {
+        if (!isValidPlayerId(playerId)) return null;
         cleanupIfExpired(playerId);
         return states.get(playerId);
+    }
+
+    public boolean isValidPlayerId(String playerId) {
+        if (playerId == null) return false;
+        String trimmed = playerId.trim();
+        return !trimmed.isBlank() && trimmed.length() <= 64;
     }
 }

@@ -55,9 +55,11 @@ public final class ConfigManager {
         try {
             Files.createDirectories(configDir);
             Path file = configDir.resolve(fileName);
-            try (Writer w = Files.newBufferedWriter(file)) {
+            Path temp = Files.createTempFile(configDir, fileName, ".tmp");
+            try (Writer w = Files.newBufferedWriter(temp)) {
                 gson.toJson(obj, w);
             }
+            Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new RuntimeException("Failed to save config: " + fileName, e);
         }

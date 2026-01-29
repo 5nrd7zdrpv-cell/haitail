@@ -21,6 +21,7 @@ public final class CombatStatusCommand implements ICommand {
     public String execute(String[] args) {
         if (args.length < 1) return "Usage: combat status <playerId>\n";
         String id = args[0];
+        if (!combat.isValidPlayerId(id)) return "Invalid playerId.\n";
 
         CombatService.CombatState s = combat.getState(id);
         boolean inCombat = combat.isInCombat(id);

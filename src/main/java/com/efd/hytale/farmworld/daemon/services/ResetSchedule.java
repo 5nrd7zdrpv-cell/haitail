@@ -40,7 +40,7 @@ public final class ResetSchedule {
 
     private static Policy parsePolicy(String s) {
         try {
-            String[] parts = s.trim().split("\s+");
+            String[] parts = s.trim().split("\\s+");
             if (parts.length != 2) return null;
             DayOfWeek dow = switch (parts[0].toUpperCase(Locale.ROOT)) {
                 case "MON" -> DayOfWeek.MONDAY;
