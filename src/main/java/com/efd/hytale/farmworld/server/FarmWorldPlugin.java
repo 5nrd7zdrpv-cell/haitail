@@ -7,13 +7,15 @@ import com.efd.hytale.farmworld.shared.config.FarmWorldConfig;
 import com.efd.hytale.farmworld.shared.services.CombatService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldService;
 import com.efd.hytale.farmworld.shared.services.ProtectionService;
+import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class FarmWorldPlugin implements PluginLifecycle {
+public class FarmWorldPlugin extends JavaPlugin {
   private final Logger logger = Logger.getLogger(FarmWorldPlugin.class.getName());
 
   private ScheduledExecutorService executorService;
@@ -22,9 +24,13 @@ public class FarmWorldPlugin implements PluginLifecycle {
   private ProtectionService protectionService;
   private CommandBridge commandBridge;
 
+  public FarmWorldPlugin(JavaPluginInit init) {
+    super(init);
+  }
+
   @Override
-  public void enable() {
-    logger.info("Enabling FarmWorld plugin...");
+  public void setup() {
+    logger.info("Setting up FarmWorld plugin...");
     ConfigManager configManager = new ConfigManager(logger);
     FarmWorldConfig config = configManager.load();
 
@@ -39,19 +45,27 @@ public class FarmWorldPlugin implements PluginLifecycle {
     combatService = new CombatService(config.combat);
     protectionService = new ProtectionService(config.protection);
 
-    farmWorldService.start();
-
     CommandRegistry registry = new CommandRegistry();
     new DefaultCommands().register(registry, farmWorldService, combatService);
     commandBridge = new CommandBridge(registry);
 
-    runSelfTest();
-    logger.info("FarmWorld plugin enabled.");
+    logger.info("FarmWorld plugin setup complete.");
   }
 
   @Override
-  public void disable() {
-    logger.info("Disabling FarmWorld plugin...");
+  public void start() {
+    logger.info("Starting FarmWorld plugin...");
+    if (farmWorldService != null) {
+      farmWorldService.start();
+    }
+
+    runSelfTest();
+    logger.info("FarmWorld plugin started.");
+  }
+
+  @Override
+  public void shutdown() {
+    logger.info("Shutting down FarmWorld plugin...");
     if (farmWorldService != null) {
       farmWorldService.stop();
     }
@@ -61,7 +75,7 @@ public class FarmWorldPlugin implements PluginLifecycle {
     if (combatService != null) {
       combatService.clearAll();
     }
-    logger.info("FarmWorld plugin disabled.");
+    logger.info("FarmWorld plugin shutdown complete.");
   }
 
   public CommandBridge getCommandBridge() {
