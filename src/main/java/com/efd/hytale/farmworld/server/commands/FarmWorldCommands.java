@@ -219,7 +219,7 @@ public final class FarmWorldCommands {
       if (farmWorldService == null || config == null) {
         return null;
       }
-      if (parts.length < 3 || !"setspawn".equalsIgnoreCase(parts[1]) || !"self".equalsIgnoreCase(parts[2])) {
+      if (parts.length != 3 || !"setspawn".equalsIgnoreCase(parts[1]) || !"self".equalsIgnoreCase(parts[2])) {
         return null;
       }
       Player player = resolvePlayer(context);
@@ -272,7 +272,7 @@ public final class FarmWorldCommands {
       if (!"status".equalsIgnoreCase(parts[1])) {
         return null;
       }
-      if (parts.length >= 5) {
+      if (parts.length != 2) {
         return null;
       }
       Player player = resolvePlayer(context);
