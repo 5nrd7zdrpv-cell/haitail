@@ -34,12 +34,5 @@
     "tagSeconds": 20,
     "onQuit": "NONE",
     "penaltySeconds": 30
-  },
-  "daemon": {
-    "tcp": {
-      "enabled": false,
-      "port": 25575,
-      "password": "change-me"
-    }
   }
 }
