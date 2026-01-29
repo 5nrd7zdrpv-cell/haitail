@@ -1,4 +1,5 @@
 {
+  "Group": "com.efd.hytale",
   "Name": "FarmWorld",
   "Version": "0.4.1",
   "Main": "com.efd.hytale.farmworld.server.FarmWorldPlugin",

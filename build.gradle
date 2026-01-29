@@ -29,6 +29,12 @@ tasks.withType(Jar).configureEach {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+tasks.named('jar') {
+  from('src/main/resources/manifest.json') {
+    into ''
+  }
+}
+
 tasks.register('packagePlugin', Copy) {
   from tasks.named('jar')
   into layout.buildDirectory.dir('dist')
