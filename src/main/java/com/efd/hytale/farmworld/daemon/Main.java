@@ -4,6 +4,7 @@ import com.efd.hytale.farmworld.daemon.commands.CommandManager;
 import com.efd.hytale.farmworld.daemon.commands.impl.*;
 import com.efd.hytale.farmworld.daemon.config.ConfigManager;
 import com.efd.hytale.farmworld.daemon.config.FarmWorldConfig;
+import com.efd.hytale.farmworld.daemon.config.ConfigValidator;
 import com.efd.hytale.farmworld.daemon.services.*;
 
 import com.efd.hytale.farmworld.daemon.tcp.TcpCommandServer;
@@ -20,6 +21,10 @@ public final class Main {
         Path dataDir = Path.of(".data");
         ConfigManager configManager = new ConfigManager(dataDir.resolve("config"));
         FarmWorldConfig config = configManager.loadOrCreateDefault(CONFIG_FILE, FarmWorldConfig.class, FarmWorldConfig::defaultConfig);
+        boolean sanitized = ConfigValidator.sanitize(config);
+        if (sanitized) {
+            configManager.save(CONFIG_FILE, config);
+        }
 
         ZoneId zone = ZoneId.systemDefault();
 
@@ -51,7 +56,7 @@ public final class Main {
             tcp = new TcpCommandServer(config.daemon.tcp, (line) -> {
                 String trimmed = line == null ? "" : line.trim();
                 if (trimmed.isBlank()) return "";
-                String[] parts = trimmed.split("\s+");
+                String[] parts = trimmed.split("\\s+");
                 String root = parts[0].toLowerCase();
                 String remainder = trimmed.substring(root.length()).trim();
                 return commands.dispatchWithOutput(root, remainder);
@@ -62,21 +67,21 @@ public final class Main {
 
         System.out.println("[FarmWorld] ready (Step 4.1). tip: 'exit'");
 
-        Scanner sc = new Scanner(System.in);
-        while (true) {
-            System.out.print("> ");
-            String line = sc.nextLine();
-            if (line == null) break;
-            line = line.trim();
-            if (line.equalsIgnoreCase("exit")) break;
-            if (line.isBlank()) continue;
+        try (Scanner sc = new Scanner(System.in)) {
+            while (sc.hasNextLine()) {
+                System.out.print("> ");
+                String line = sc.nextLine();
+                line = line.trim();
+                if (line.equalsIgnoreCase("exit")) break;
+                if (line.isBlank()) continue;
 
-            String[] parts = line.split("\s+");
-            String root = parts[0].toLowerCase();
-            String remainder = line.substring(root.length()).trim();
+                String[] parts = line.split("\\s+");
+                String root = parts[0].toLowerCase();
+                String remainder = line.substring(root.length()).trim();
 
-            String out = commands.dispatchWithOutput(root, remainder);
-            if (out != null && !out.isBlank()) System.out.print(out);
+                String out = commands.dispatchWithOutput(root, remainder);
+                if (out != null && !out.isBlank()) System.out.print(out);
+            }
         }
 
         if (tcp != null) tcp.stop();

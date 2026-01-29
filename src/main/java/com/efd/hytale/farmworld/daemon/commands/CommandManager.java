@@ -17,7 +17,7 @@ public final class CommandManager {
 
         String[] tokens = remainderLine == null || remainderLine.isBlank()
                 ? new String[0]
-                : remainderLine.trim().split("\s+");
+                : remainderLine.trim().split("\\s+");
 
         for (ICommand c : cmds) {
             if (matchesPath(tokens, c.path())) {

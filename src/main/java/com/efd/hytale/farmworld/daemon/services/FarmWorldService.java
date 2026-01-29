@@ -134,11 +134,12 @@ public final class FarmWorldService {
             throw new IOException("Refusing to delete suspicious path: " + normalized);
         }
 
-        Files.walk(normalized)
-                .sorted((a, b) -> b.compareTo(a))
-                .forEach(p -> {
-                    try { Files.deleteIfExists(p); }
-                    catch (IOException ex) { throw new RuntimeException(ex); }
-                });
+        try (var stream = Files.walk(normalized)) {
+            stream.sorted((a, b) -> b.compareTo(a))
+                    .forEach(p -> {
+                        try { Files.deleteIfExists(p); }
+                        catch (IOException ex) { throw new RuntimeException(ex); }
+                    });
+        }
     }
 }

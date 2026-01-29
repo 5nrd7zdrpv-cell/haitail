@@ -27,6 +27,7 @@ public final class CombatQuitCommand implements ICommand {
         FarmWorldConfig c = cfg.get();
         if (!c.combat.enabled) return "[Combat] disabled\n";
         String id = args[0];
+        if (!combat.isValidPlayerId(id)) return "Invalid playerId.\n";
         String res = combat.onPlayerQuit(id);
         return "[Combat] " + res + "\n";
     }

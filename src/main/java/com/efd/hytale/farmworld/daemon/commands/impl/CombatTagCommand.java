@@ -26,6 +26,7 @@ public final class CombatTagCommand implements ICommand {
         if (args.length < 1) return "Usage: combat tag <playerId> [seconds] [reason...]\n";
 
         String playerId = args[0];
+        if (!combat.isValidPlayerId(playerId)) return "Invalid playerId.\n";
         int seconds = 0;
         int idx = 1;
 

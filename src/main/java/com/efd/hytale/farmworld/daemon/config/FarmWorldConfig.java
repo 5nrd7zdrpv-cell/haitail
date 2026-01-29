@@ -52,6 +52,10 @@ public final class FarmWorldConfig {
         c.daemon.tcp.enabled = false;
         c.daemon.tcp.port = 25575;
         c.daemon.tcp.password = "change-me";
+        c.daemon.tcp.maxConnections = 32;
+        c.daemon.tcp.maxLineLength = 2048;
+        c.daemon.tcp.readTimeoutMillis = 5000;
+        c.daemon.tcp.commandRateLimitPerMinute = 120;
 
         return c;
     }
@@ -107,5 +111,9 @@ public final class FarmWorldConfig {
         public boolean enabled = false;
         public int port = 25575;
         public String password = "change-me";
+        public int maxConnections = 32;
+        public int maxLineLength = 2048;
+        public int readTimeoutMillis = 5000;
+        public int commandRateLimitPerMinute = 120;
     }
 }

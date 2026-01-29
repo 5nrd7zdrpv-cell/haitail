@@ -21,6 +21,7 @@ public final class CombatCanWarpCommand implements ICommand {
     public String execute(String[] args) {
         if (args.length < 1) return "Usage: combat canwarp <playerId>\n";
         String id = args[0];
+        if (!combat.isValidPlayerId(id)) return "Invalid playerId.\n";
         boolean ok = combat.canWarp(id);
         if (ok) return "[Combat] canWarp=true\n";
         int rem = combat.getRemainingSeconds(id);
