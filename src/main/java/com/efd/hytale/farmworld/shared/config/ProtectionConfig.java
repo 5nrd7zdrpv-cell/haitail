@@ -6,6 +6,6 @@ public class ProtectionConfig {
   public FarmWorldSpawn center = null;
   public java.util.List<String> bypassRoles = java.util.List.of();
   public java.util.List<String> bypassPermissions = java.util.List.of();
-  public String bypassPermission = "efd.farmworld.admin";
+  public String bypassPermission = "farmworld.admin";
   public ProtectionActions actions = new ProtectionActions();
 }
