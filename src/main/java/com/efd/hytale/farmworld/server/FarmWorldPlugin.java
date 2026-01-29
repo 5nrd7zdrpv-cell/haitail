@@ -180,7 +180,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (player == null) {
       return;
     }
-    PlayerRef playerRef = player.getPlayerRef();
+    PlayerRef playerRef = PlayerRefResolver.fromPlayer(player);
     if (playerRef != null) {
       combatService.recordPlayer(playerRef.getUuid(), playerRef.getUsername());
     }
@@ -241,7 +241,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (!world.getName().equalsIgnoreCase(spawn.worldId)) {
       return;
     }
-    PlayerRef playerRef = player.getPlayerRef();
+    PlayerRef playerRef = PlayerRefResolver.fromPlayer(player);
     if (playerRef != null && combatService.isInCombat(playerRef.getUuid())) {
       logger.warning("[FarmWorld] Combat-Logout: " + playerRef.getUsername());
     }
