@@ -5,9 +5,9 @@ import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.UUID;
 
@@ -26,17 +26,15 @@ public class CombatDamageEventSystem extends DamageEventSystem {
       Store<EntityStore> store,
       CommandBuffer<EntityStore> commandBuffer,
       Damage event) {
-    Player victim = chunk.getComponent(entity, Player.getComponentType());
-    if (victim == null) {
+    PlayerRef victimRef = PlayerRefResolver.fromEntity(store, chunk, entity);
+    if (victimRef == null) {
       return;
     }
-    tagPlayer(victim);
+    tagPlayer(victimRef);
     Damage.Source source = event.getSource();
     if (source instanceof Damage.EntitySource entitySource) {
-      Player attacker = store.getComponent(entitySource.getRef(), Player.getComponentType());
-      if (attacker != null) {
-        tagPlayer(attacker);
-      }
+      PlayerRef attackerRef = PlayerRefResolver.fromRef(store, entitySource.getRef());
+      tagPlayer(attackerRef);
     }
   }
 
@@ -45,12 +43,12 @@ public class CombatDamageEventSystem extends DamageEventSystem {
     return Query.any();
   }
 
-  private void tagPlayer(Player player) {
-    if (player == null || player.getPlayerRef() == null || player.getPlayerRef().getUuid() == null) {
+  private void tagPlayer(PlayerRef playerRef) {
+    if (playerRef == null || playerRef.getUuid() == null) {
       return;
     }
-    UUID playerId = player.getPlayerRef().getUuid();
-    combatService.recordPlayer(playerId, player.getPlayerRef().getUsername());
+    UUID playerId = playerRef.getUuid();
+    combatService.recordPlayer(playerId, playerRef.getUsername());
     combatService.tag(playerId);
   }
 }

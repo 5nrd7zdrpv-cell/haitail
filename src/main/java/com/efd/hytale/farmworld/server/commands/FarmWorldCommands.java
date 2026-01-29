@@ -1,6 +1,7 @@
 package com.efd.hytale.farmworld.server.commands;
 
 import com.efd.hytale.farmworld.server.CommandBridge;
+import com.efd.hytale.farmworld.server.PlayerRefResolver;
 import com.efd.hytale.farmworld.shared.commands.CommandRegistry;
 import com.efd.hytale.farmworld.shared.commands.CommandMessages;
 import com.efd.hytale.farmworld.shared.commands.CommandResult;
@@ -13,6 +14,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import java.util.Locale;
 import java.util.StringJoiner;
@@ -145,11 +147,14 @@ public final class FarmWorldCommands {
       if (combatService == null || sender == null) {
         return;
       }
-      if (sender instanceof Player player && player.getPlayerRef() != null) {
-        String username = player.getPlayerRef().getUsername();
-        if (player.getPlayerRef().getUuid() != null && username != null && !username.isBlank()) {
-          combatService.recordPlayer(player.getPlayerRef().getUuid(), username);
-          return;
+      if (sender instanceof Player player) {
+        var playerRef = PlayerRefResolver.fromPlayer(player);
+        if (playerRef != null) {
+          String username = playerRef.getUsername();
+          if (playerRef.getUuid() != null && username != null && !username.isBlank()) {
+            combatService.recordPlayer(playerRef.getUuid(), username);
+            return;
+          }
         }
       }
       if (sender.getUuid() == null || sender.getDisplayName() == null || sender.getDisplayName().isBlank()) {
@@ -301,10 +306,18 @@ public final class FarmWorldCommands {
     }
 
     private Vector3d resolvePosition(Player player) {
-      if (player == null || player.getTransformComponent() == null) {
+      if (player == null) {
         return null;
       }
-      return player.getTransformComponent().getPosition();
+      var playerRef = PlayerRefResolver.fromPlayer(player);
+      if (playerRef == null) {
+        return null;
+      }
+      Transform transform = playerRef.getTransform();
+      if (transform == null) {
+        return null;
+      }
+      return transform.getPosition();
     }
 
     private String buildCommand(String... parts) {

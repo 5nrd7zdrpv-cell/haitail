@@ -13,7 +13,7 @@ public final class ProtectionPermissionHelper {
     if (player == null) {
       return "unknown";
     }
-    PlayerRef playerRef = player.getPlayerRef();
+    PlayerRef playerRef = PlayerRefResolver.fromPlayer(player);
     if (playerRef != null && playerRef.getUsername() != null && !playerRef.getUsername().isBlank()) {
       return playerRef.getUsername();
     }
