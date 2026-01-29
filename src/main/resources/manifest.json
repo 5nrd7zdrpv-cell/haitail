@@ -4,8 +4,11 @@
   "Main": "com.efd.hytale.farmworld.server.FarmWorldPlugin",
   "Description": "Farm world reset scheduling, protection checks, and combat tagging services.",
   "Authors": [
-    "EFD"
+    {
+      "Name": "Camo"
+    }
   ],
-  "Dependencies": [],
-  "OptionalDependencies": []
+  "Dependencies": {},
+  "OptionalDependencies": {},
+  "LoadBefore": {}
 }
