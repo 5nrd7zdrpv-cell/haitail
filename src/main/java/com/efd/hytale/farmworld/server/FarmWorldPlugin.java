@@ -218,7 +218,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (!allowed) {
       event.setCancelled(true);
       if (protectionBridge.shouldNotify(actorName)) {
-        player.sendMessage(Message.raw("[FarmWorld] ❌ Du befindest dich in einer Schutzzone."));
+        player.sendMessage(Message.raw("[FarmWorld] [FEHLER] Du befindest dich in einer Schutzzone."));
       }
     }
   }
