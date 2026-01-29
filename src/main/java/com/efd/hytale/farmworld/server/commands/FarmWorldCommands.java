@@ -56,6 +56,14 @@ public final class FarmWorldCommands {
     context.sendMessage(Message.raw(result.message));
   }
 
+  private static boolean ensurePermission(CommandContext context, String permission) {
+    if (context.sender().hasPermission(permission)) {
+      return true;
+    }
+    context.sendMessage(Message.raw("Missing permission: " + permission + "."));
+    return false;
+  }
+
   private static final class FarmCommand extends AbstractCommandCollection {
     FarmCommand(
         CommandRegistry registry,
@@ -71,14 +79,19 @@ public final class FarmWorldCommands {
 
   private static final class FarmStatusCommand extends CommandBase {
     private final CommandRegistry registry;
+    private final String usePermission;
 
     FarmStatusCommand(CommandRegistry registry) {
       super("status", "Zeigt den Farmwelt-Status.");
       this.registry = registry;
+      this.usePermission = usePermission;
     }
 
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, usePermission)) {
+        return;
+      }
       CommandResult result = registry.execute(actorId(context), "farm", List.of("status"));
       sendResult(context, result);
     }
@@ -98,11 +111,16 @@ public final class FarmWorldCommands {
     FarmResetNowCommand(CommandRegistry registry, String adminPermission) {
       super("now", "Setzt die Farmwelt sofort zurück.");
       this.registry = registry;
-      requirePermission(adminPermission);
+      this.adminPermission = adminPermission;
     }
+
+    private final String adminPermission;
 
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, adminPermission)) {
+        return;
+      }
       CommandResult result = registry.execute(actorId(context), "farm", List.of("reset", "now"));
       sendResult(context, result);
     }
@@ -114,11 +132,16 @@ public final class FarmWorldCommands {
     FarmResetScheduleCommand(CommandRegistry registry, String adminPermission) {
       super("schedule", "Plant den nächsten Farmwelt-Reset.");
       this.registry = registry;
-      requirePermission(adminPermission);
+      this.adminPermission = adminPermission;
     }
+
+    private final String adminPermission;
 
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, adminPermission)) {
+        return;
+      }
       CommandResult result = registry.execute(actorId(context), "farm", List.of("reset", "schedule"));
       sendResult(context, result);
     }
@@ -147,6 +170,8 @@ public final class FarmWorldCommands {
       worldIdArg = withOptionalArg("worldId", "Welt-Id", ArgTypes.STRING);
       instanceIdArg = withOptionalArg("instanceId", "Instanz-Id", ArgTypes.STRING);
     }
+
+    private final String adminPermission;
 
     @Override
     protected void executeSync(CommandContext context) {
@@ -270,8 +295,13 @@ public final class FarmWorldCommands {
       bypassArg = withOptionalArg("bypass", "Bypass", ArgTypes.BOOLEAN);
     }
 
+    private final String adminPermission;
+
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, adminPermission)) {
+        return;
+      }
       List<String> args = new ArrayList<>();
       args.add("test");
       args.add(context.get(actionArg));
@@ -311,6 +341,9 @@ public final class FarmWorldCommands {
 
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, usePermission)) {
+        return;
+      }
       List<String> args = new ArrayList<>();
       args.add("status");
       if (context.provided(targetArg)) {
@@ -337,6 +370,9 @@ public final class FarmWorldCommands {
 
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, usePermission)) {
+        return;
+      }
       List<String> args = new ArrayList<>();
       args.add("canwarp");
       if (context.provided(targetArg)) {
@@ -366,8 +402,13 @@ public final class FarmWorldCommands {
       reasonArg = withListOptionalArg("reason", "Grund", ArgTypes.STRING);
     }
 
+    private final String adminPermission;
+
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, adminPermission)) {
+        return;
+      }
       List<String> args = new ArrayList<>();
       args.add("tag");
       PlayerRef target = context.get(targetArg);
@@ -390,11 +431,16 @@ public final class FarmWorldCommands {
     CombatCleanupCommand(CommandRegistry registry, String adminPermission) {
       super("cleanup", "Entfernt alle Kampftags.");
       this.registry = registry;
-      requirePermission(adminPermission);
+      this.adminPermission = adminPermission;
     }
+
+    private final String adminPermission;
 
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, adminPermission)) {
+        return;
+      }
       CommandResult result = registry.execute(actorId(context), "combat", List.of("cleanup"));
       sendResult(context, result);
     }
@@ -413,8 +459,13 @@ public final class FarmWorldCommands {
       targetArg = withRequiredArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
     }
 
+    private final String adminPermission;
+
     @Override
     protected void executeSync(CommandContext context) {
+      if (!ensurePermission(context, adminPermission)) {
+        return;
+      }
       List<String> args = new ArrayList<>();
       args.add("quit");
       PlayerRef target = context.get(targetArg);

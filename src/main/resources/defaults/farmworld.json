@@ -20,7 +20,7 @@
     "center": null,
     "bypassRoles": [],
     "bypassPermissions": [],
-    "bypassPermission": "efd.farmworld.admin",
+    "bypassPermission": "farmworld.admin",
     "actions": {
       "place": true,
       "breakBlock": true,
