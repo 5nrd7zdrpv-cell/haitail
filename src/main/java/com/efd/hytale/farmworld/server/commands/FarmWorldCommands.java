@@ -95,6 +95,7 @@ public final class FarmWorldCommands {
       this.config = config;
       this.protectionService = protectionService;
       this.combatService = combatService;
+      setAllowsExtraArguments(true);
     }
 
     @Override

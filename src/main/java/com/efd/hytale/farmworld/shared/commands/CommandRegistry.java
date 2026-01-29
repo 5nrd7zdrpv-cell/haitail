@@ -11,6 +11,9 @@ public class CommandRegistry {
 
   public void register(CommandDefinition definition) {
     String key = definition.name.toLowerCase(Locale.ROOT);
+    if (commands.containsKey(key)) {
+      throw new IllegalStateException("Command already registered: " + definition.name);
+    }
     commands.put(key, definition);
   }
 

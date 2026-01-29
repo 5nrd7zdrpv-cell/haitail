@@ -31,9 +31,8 @@ public class DefaultCommands {
             "Farmwelt-Status und Reset-Befehle.",
             List.of(),
             context -> {
-              if (context.args.isEmpty()) {
-                return CommandResult.error(CommandMessages.error(
-                    "Nutzung: /farm status|reset now|reset schedule|setspawn <x> <y> <z> [worldId] [instanceId]"));
+              if (isHelpRequest(context.args)) {
+                return CommandResult.ok(CommandMessages.prefixLines(farmHelpLines(), "[INFO] "));
               }
               String action = context.args.get(0).toLowerCase(Locale.ROOT);
               return switch (action) {
@@ -50,8 +49,8 @@ public class DefaultCommands {
             "Kampfstatus und Admin-Werkzeuge.",
             List.of(),
             context -> {
-              if (context.args.isEmpty()) {
-                return CommandResult.error(CommandMessages.error("Nutzung: /combat status|canwarp|tag|quit|cleanup"));
+              if (isHelpRequest(context.args)) {
+                return CommandResult.ok(CommandMessages.prefixLines(combatHelpLines(), "[INFO] "));
               }
               String action = context.args.get(0).toLowerCase(Locale.ROOT);
               return switch (action) {
@@ -73,9 +72,8 @@ public class DefaultCommands {
             "Schutzzone-Status und Test.",
             List.of(),
             context -> {
-              if (context.args.isEmpty()) {
-                return CommandResult.error(CommandMessages.error(
-                    "Nutzung: /protect status|add|remove|list|test <AKTION> <x> <y> <z> [perm=true|false]"));
+              if (isHelpRequest(context.args)) {
+                return CommandResult.ok(CommandMessages.prefixLines(protectHelpLines(), "[INFO] "));
               }
               String action = context.args.get(0).toLowerCase(Locale.ROOT);
               return switch (action) {
@@ -87,6 +85,46 @@ public class DefaultCommands {
                 default -> CommandResult.error(CommandMessages.error("Unbekannter Schutz-Befehl: " + action));
               };
             }));
+  }
+
+  private static boolean isHelpRequest(List<String> args) {
+    if (args == null || args.isEmpty()) {
+      return true;
+    }
+    String value = args.get(0).toLowerCase(Locale.ROOT);
+    return value.equals("--help") || value.equals("help") || value.equals("-h");
+  }
+
+  private static List<String> farmHelpLines() {
+    return List.of(
+        "Verfügbare /farm Befehle:",
+        "  /farm status",
+        "  /farm reset now",
+        "  /farm reset schedule",
+        "  /farm setspawn <x> <y> <z> [worldId] [instanceId]",
+        "  /farm setspawn self");
+  }
+
+  private static List<String> protectHelpLines() {
+    return List.of(
+        "Verfügbare /protect Befehle:",
+        "  /protect status",
+        "  /protect status <x> <y> <z> [worldId] [instanceId]",
+        "  /protect add <x> <y> <z> <radius> [name]",
+        "  /protect add self <radius> [name]",
+        "  /protect remove <name|id>",
+        "  /protect list",
+        "  /protect test <AKTION> <x> <y> <z> [perm=true|false]");
+  }
+
+  private static List<String> combatHelpLines() {
+    return List.of(
+        "Verfügbare /combat Befehle:",
+        "  /combat status [player]",
+        "  /combat canwarp [player]",
+        "  /combat tag <player> [sekunden] [grund...]",
+        "  /combat quit <player>",
+        "  /combat cleanup");
   }
 
   private static CommandResult handleFarmReset(List<String> args, FarmWorldService farmWorldService) {
