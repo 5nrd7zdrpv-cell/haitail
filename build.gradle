@@ -1,0 +1,30 @@
+plugins {
+  id 'java'
+  id 'application'
+}
+
+group = 'com.efd.hytale'
+version = '0.4.1'
+
+java {
+  toolchain { languageVersion = JavaLanguageVersion.of(17) }
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+  implementation 'com.google.code.gson:gson:2.11.0'
+}
+
+application {
+  mainClass = 'com.efd.hytale.farmworld.daemon.Main'
+}
+
+
+tasks.withType(Copy).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(Jar).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

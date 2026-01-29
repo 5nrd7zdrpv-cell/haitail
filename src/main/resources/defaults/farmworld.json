@@ -1,0 +1,45 @@
+{
+  "farmWorld": {
+    "name": "farm",
+    "resetIntervalDays": 7,
+    "resetAt": "SUN 04:00",
+    "seed": "",
+    "spawn": {
+      "x": 0,
+      "y": 80,
+      "z": 0,
+      "prefabPath": "prefabs/farm_spawn.prefab",
+      "prefabOffsetX": 0,
+      "prefabOffsetY": 0,
+      "prefabOffsetZ": 0
+    }
+  },
+  "lastResetEpochSeconds": 1769472383,
+  "protection": {
+    "enabled": true,
+    "radius": 64,
+    "bypassPermission": "efd.farmworld.admin",
+    "actions": {
+      "place": true,
+      "breakBlock": true,
+      "interact": true,
+      "damage": true,
+      "explosion": true,
+      "fireSpread": true,
+      "liquid": true
+    }
+  },
+  "combat": {
+    "enabled": true,
+    "tagSeconds": 20,
+    "onQuit": "NONE",
+    "penaltySeconds": 30
+  },
+  "daemon": {
+    "tcp": {
+      "enabled": false,
+      "port": 25575,
+      "password": "change-me"
+    }
+  }
+}
