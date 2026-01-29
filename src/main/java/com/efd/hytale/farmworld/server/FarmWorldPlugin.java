@@ -3,10 +3,12 @@ package com.efd.hytale.farmworld.server;
 import com.efd.hytale.farmworld.shared.commands.CommandRegistry;
 import com.efd.hytale.farmworld.shared.commands.CommandRegistrySelfTest;
 import com.efd.hytale.farmworld.shared.commands.DefaultCommands;
+import com.efd.hytale.farmworld.shared.config.ConfigValidator;
 import com.efd.hytale.farmworld.shared.config.FarmWorldConfig;
-import com.efd.hytale.farmworld.shared.services.CombatService;
+import com.efd.hytale.farmworld.shared.services.CombatTagService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldService;
 import com.efd.hytale.farmworld.shared.services.ProtectionService;
+import com.efd.hytale.farmworld.shared.services.FarmWorldWorldAdapter;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import java.util.List;
@@ -20,9 +22,11 @@ public class FarmWorldPlugin extends JavaPlugin {
 
   private ScheduledExecutorService executorService;
   private FarmWorldService farmWorldService;
-  private CombatService combatService;
+  private CombatTagService combatService;
   private ProtectionService protectionService;
   private CommandBridge commandBridge;
+  private CombatBridge combatBridge;
+  private ProtectionBridge protectionBridge;
 
   public FarmWorldPlugin(JavaPluginInit init) {
     super(init);
@@ -33,6 +37,9 @@ public class FarmWorldPlugin extends JavaPlugin {
     logger.info("Setting up FarmWorld plugin...");
     ConfigManager configManager = new ConfigManager(logger);
     FarmWorldConfig config = configManager.load();
+    for (String issue : ConfigValidator.validateSevere(config)) {
+      logger.severe(issue);
+    }
 
     executorService = Executors.newSingleThreadScheduledExecutor(runnable -> {
       Thread thread = new Thread(runnable, "FarmWorldScheduler");
@@ -41,9 +48,13 @@ public class FarmWorldPlugin extends JavaPlugin {
     });
 
     ExecutorScheduler scheduler = new ExecutorScheduler(executorService);
-    farmWorldService = new FarmWorldService(config, scheduler);
-    combatService = new CombatService(config.combat);
-    protectionService = new ProtectionService(config.protection);
+    AsyncConfigStore configStore = new AsyncConfigStore(configManager, executorService, logger);
+    FarmWorldWorldAdapter worldAdapter = new LoggingFarmWorldWorldAdapter(logger);
+    farmWorldService = new FarmWorldService(config, scheduler, configStore, worldAdapter, logger);
+    combatService = new CombatTagService(config.combat);
+    protectionService = new ProtectionService(config.protection, logger);
+    combatBridge = new CombatBridge(combatService, logger);
+    protectionBridge = new ProtectionBridge(config, protectionService);
 
     CommandRegistry registry = new CommandRegistry();
     new DefaultCommands().register(registry, farmWorldService, combatService);
@@ -82,12 +93,20 @@ public class FarmWorldPlugin extends JavaPlugin {
     return commandBridge;
   }
 
-  public CombatService getCombatService() {
+  public CombatTagService getCombatService() {
     return combatService;
   }
 
   public ProtectionService getProtectionService() {
     return protectionService;
+  }
+
+  public CombatBridge getCombatBridge() {
+    return combatBridge;
+  }
+
+  public ProtectionBridge getProtectionBridge() {
+    return protectionBridge;
   }
 
   private void runSelfTest() {
