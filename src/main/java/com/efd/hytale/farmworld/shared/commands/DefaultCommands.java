@@ -440,10 +440,19 @@ public class DefaultCommands {
     }
     String candidate = base;
     int counter = 1;
-    while (points.stream().anyMatch(point -> point != null && candidate.equalsIgnoreCase(point.id))) {
+    while (containsPointId(points, candidate)) {
       candidate = base + counter;
       counter++;
     }
     return candidate;
+  }
+
+  private static boolean containsPointId(List<ProtectionPoint> points, String candidate) {
+    for (ProtectionPoint point : points) {
+      if (point != null && point.id != null && candidate.equalsIgnoreCase(point.id)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
