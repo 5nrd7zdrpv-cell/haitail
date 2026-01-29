@@ -64,6 +64,24 @@ public final class ConfigValidator {
       warnings.add(PREFIX + "protection.points fehlt; Standardwert leer wird gesetzt.");
       config.protection.points = new ArrayList<>();
     }
+    if (config.protection.points != null) {
+      int index = 1;
+      for (ProtectionPoint point : config.protection.points) {
+        if (point == null) {
+          continue;
+        }
+        if (point.id == null || point.id.isBlank()) {
+          point.id = "p" + index;
+          warnings.add(PREFIX + "protection.points[" + index + "].id fehlt; Standardwert " + point.id + " gesetzt.");
+        }
+        if (point.radius <= 0) {
+          point.radius = config.protection.radius;
+          warnings.add(PREFIX + "protection.points[" + index + "].radius <= 0; Standardwert " +
+              config.protection.radius + " gesetzt.");
+        }
+        index++;
+      }
+    }
     if (config.protection.bypassRoles == null) {
       warnings.add(PREFIX + "protection.bypassRoles fehlt; Standardwert leer wird gesetzt.");
       config.protection.bypassRoles = java.util.List.of();

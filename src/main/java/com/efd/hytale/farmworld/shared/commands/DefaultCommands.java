@@ -3,6 +3,7 @@ package com.efd.hytale.farmworld.shared.commands;
 import com.efd.hytale.farmworld.shared.config.FarmWorldConfig;
 import com.efd.hytale.farmworld.shared.config.FarmWorldSpawn;
 import com.efd.hytale.farmworld.shared.config.ProtectionActions;
+import com.efd.hytale.farmworld.shared.config.ProtectionPoint;
 import com.efd.hytale.farmworld.shared.services.CombatTagService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldStatus;
@@ -15,11 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DefaultCommands {
-  private static final String PREFIX = "[FarmWorld] ";
-
   public void register(
       CommandRegistry registry,
       FarmWorldService farmWorldService,
@@ -33,14 +32,15 @@ public class DefaultCommands {
             List.of(),
             context -> {
               if (context.args.isEmpty()) {
-                return CommandResult.error(error("Nutzung: /farm status|reset now|reset schedule|setspawn <x> <y> <z> [worldId] [instanceId]"));
+                return CommandResult.error(CommandMessages.error(
+                    "Nutzung: /farm status|reset now|reset schedule|setspawn <x> <y> <z> [worldId] [instanceId]"));
               }
               String action = context.args.get(0).toLowerCase(Locale.ROOT);
               return switch (action) {
                 case "status" -> CommandResult.ok(formatFarmStatus(farmWorldService));
                 case "reset" -> handleFarmReset(context.args, farmWorldService);
                 case "setspawn" -> handleFarmSetSpawn(context.args, farmWorldService);
-                default -> CommandResult.error(error("Unbekannter Farm-Befehl: " + action));
+                default -> CommandResult.error(CommandMessages.error("Unbekannter Farm-Befehl: " + action));
               };
             }));
 
@@ -51,7 +51,7 @@ public class DefaultCommands {
             List.of(),
             context -> {
               if (context.args.isEmpty()) {
-                return CommandResult.error(error("Nutzung: /combat status|canwarp|tag|quit|cleanup"));
+                return CommandResult.error(CommandMessages.error("Nutzung: /combat status|canwarp|tag|quit|cleanup"));
               }
               String action = context.args.get(0).toLowerCase(Locale.ROOT);
               return switch (action) {
@@ -61,9 +61,9 @@ public class DefaultCommands {
                 case "quit" -> handleCombatQuit(context.args, combatService);
                 case "cleanup" -> {
                   combatService.clearAll();
-                  yield CommandResult.ok(success("Alle Kampftags wurden entfernt."));
+                  yield CommandResult.ok(CommandMessages.success("Alle Kampftags wurden entfernt."));
                 }
-                default -> CommandResult.error(error("Unbekannter Kampf-Befehl: " + action));
+                default -> CommandResult.error(CommandMessages.error("Unbekannter Kampf-Befehl: " + action));
               };
             }));
 
@@ -74,40 +74,45 @@ public class DefaultCommands {
             List.of(),
             context -> {
               if (context.args.isEmpty()) {
-                return CommandResult.error(error("Nutzung: /protect status|test <AKTION> <x> <y> <z> [perm=true|false]"));
+                return CommandResult.error(CommandMessages.error(
+                    "Nutzung: /protect status|add|remove|list|test <AKTION> <x> <y> <z> [perm=true|false]"));
               }
               String action = context.args.get(0).toLowerCase(Locale.ROOT);
               return switch (action) {
-                case "status" -> CommandResult.ok(formatProtectionStatus(config));
+                case "status" -> handleProtectionStatus(context.args, context.actorId, protectionService, config);
+                case "add" -> handleProtectionAdd(context.args, farmWorldService);
+                case "remove" -> handleProtectionRemove(context.args, farmWorldService);
+                case "list" -> handleProtectionList(context.args, config);
                 case "test" -> handleProtectionTest(context.args, context.actorId, protectionService, config);
-                default -> CommandResult.error(error("Unbekannter Schutz-Befehl: " + action));
+                default -> CommandResult.error(CommandMessages.error("Unbekannter Schutz-Befehl: " + action));
               };
             }));
   }
 
   private static CommandResult handleFarmReset(List<String> args, FarmWorldService farmWorldService) {
     if (args.size() < 2) {
-      return CommandResult.error(error("Nutzung: /farm reset now|schedule"));
+      return CommandResult.error(CommandMessages.error("Nutzung: /farm reset now|schedule"));
     }
     String resetMode = args.get(1).toLowerCase(Locale.ROOT);
     switch (resetMode) {
       case "now" -> {
         farmWorldService.resetNow();
-        return CommandResult.ok(success("Farmwelt-Reset wurde gestartet."));
+        return CommandResult.ok(CommandMessages.success("Farmwelt-Reset wurde gestartet."));
       }
       case "schedule" -> {
         Instant nextReset = farmWorldService.scheduleNextReset();
-        return CommandResult.ok(success("Nächster Farmwelt-Reset geplant: " + nextReset + "."));
+        return CommandResult.ok(CommandMessages.success("Nächster Farmwelt-Reset geplant: " + nextReset + "."));
       }
       default -> {
-        return CommandResult.error(error("Nutzung: /farm reset now|schedule"));
+        return CommandResult.error(CommandMessages.error("Nutzung: /farm reset now|schedule"));
       }
     }
   }
 
   private static CommandResult handleFarmSetSpawn(List<String> args, FarmWorldService farmWorldService) {
     if (args.size() < 4) {
-      return CommandResult.error(error("Nutzung: /farm setspawn <x> <y> <z> [worldId] [instanceId]"));
+      return CommandResult.error(CommandMessages.error(
+          "Nutzung: /farm setspawn <x> <y> <z> [worldId] [instanceId]"));
     }
     double x;
     double y;
@@ -117,7 +122,7 @@ public class DefaultCommands {
       y = Double.parseDouble(args.get(2));
       z = Double.parseDouble(args.get(3));
     } catch (NumberFormatException ex) {
-      return CommandResult.error(error("Spawn-Koordinaten müssen Zahlen sein."));
+      return CommandResult.error(CommandMessages.error("Spawn-Koordinaten müssen Zahlen sein."));
     }
     FarmWorldSpawn currentSpawn = farmWorldService.getSpawn();
     FarmWorldSpawn spawn = new FarmWorldSpawn();
@@ -135,8 +140,10 @@ public class DefaultCommands {
       spawn.instanceId = currentSpawn.instanceId;
     }
     farmWorldService.updateSpawn(spawn);
-    return CommandResult.ok(success("Spawn gespeichert: " + formatCoordinate(x) + " " +
-        formatCoordinate(y) + " " + formatCoordinate(z) + "."));
+    return CommandResult.ok(CommandMessages.success("Spawn gespeichert: " +
+        CommandMessages.formatCoordinate(x) + " " +
+        CommandMessages.formatCoordinate(y) + " " +
+        CommandMessages.formatCoordinate(z) + "."));
   }
 
   private static CommandResult handleCombatStatus(
@@ -147,9 +154,9 @@ public class DefaultCommands {
     UUID targetId = combatService.resolvePlayerId(rawTarget);
     String displayName = combatService.describePlayer(rawTarget);
     if (targetId == null || !combatService.isInCombat(targetId)) {
-      return CommandResult.ok(info(displayName + " ist nicht im Kampf."));
+      return CommandResult.ok(CommandMessages.info(displayName + " ist nicht im Kampf."));
     }
-    return CommandResult.ok(info(displayName + " ist im Kampf (" +
+    return CommandResult.ok(CommandMessages.info(displayName + " ist im Kampf (" +
         combatService.getRemainingSeconds(targetId) + "s verbleibend)."));
   }
 
@@ -161,17 +168,18 @@ public class DefaultCommands {
     UUID targetId = combatService.resolvePlayerId(rawTarget);
     boolean canWarp = targetId == null || !combatService.isInCombat(targetId);
     String displayName = combatService.describePlayer(rawTarget);
-    return CommandResult.ok(info("Warp für " + displayName + ": " + (canWarp ? "erlaubt" : "gesperrt") + "."));
+    return CommandResult.ok(CommandMessages.info("Warp für " + displayName + ": " +
+        (canWarp ? "erlaubt" : "gesperrt") + "."));
   }
 
   private static CommandResult handleCombatTag(List<String> args, CombatTagService combatService) {
     if (args.size() < 2) {
-      return CommandResult.error(error("Nutzung: /combat tag <player> [sekunden] [grund...]"));
+      return CommandResult.error(CommandMessages.error("Nutzung: /combat tag <player> [sekunden] [grund...]"));
     }
     String target = args.get(1);
     UUID targetId = combatService.resolvePlayerId(target);
     if (targetId == null) {
-      return CommandResult.error(error("Spieler nicht gefunden: " + target + "."));
+      return CommandResult.error(CommandMessages.error("Spieler nicht gefunden: " + target + "."));
     }
     long durationSeconds = 0L;
     if (args.size() > 2) {
@@ -184,25 +192,25 @@ public class DefaultCommands {
     combatService.tag(targetId, durationSeconds);
     String displayName = combatService.getPlayerName(targetId);
     String durationLabel = durationSeconds > 0 ? durationSeconds + "s" : "Standard";
-    return CommandResult.ok(success("Kampftag gesetzt für " + displayName + " (" + durationLabel + ")."));
+    return CommandResult.ok(CommandMessages.success("Kampftag gesetzt für " + displayName + " (" + durationLabel + ")."));
   }
 
   private static CommandResult handleCombatQuit(List<String> args, CombatTagService combatService) {
     if (args.size() < 2) {
-      return CommandResult.error(error("Nutzung: /combat quit <player>"));
+      return CommandResult.error(CommandMessages.error("Nutzung: /combat quit <player>"));
     }
     String target = args.get(1);
     UUID targetId = combatService.resolvePlayerId(target);
     if (targetId == null) {
-      return CommandResult.error(error("Spieler nicht gefunden: " + target + "."));
+      return CommandResult.error(CommandMessages.error("Spieler nicht gefunden: " + target + "."));
     }
     boolean wasTagged = combatService.isInCombat(targetId);
     combatService.clear(targetId);
     String displayName = combatService.getPlayerName(targetId);
     if (!wasTagged) {
-      return CommandResult.ok(info(displayName + " war nicht im Kampf."));
+      return CommandResult.ok(CommandMessages.info(displayName + " war nicht im Kampf."));
     }
-    return CommandResult.ok(success("Kampftag entfernt für " + displayName + "."));
+    return CommandResult.ok(CommandMessages.success("Kampftag entfernt für " + displayName + "."));
   }
 
   private static CommandResult handleProtectionTest(
@@ -211,13 +219,14 @@ public class DefaultCommands {
       ProtectionService protectionService,
       FarmWorldConfig config) {
     if (args.size() < 5) {
-      return CommandResult.error(error("Nutzung: /protect test <AKTION> <x> <y> <z> [perm=true|false]"));
+      return CommandResult.error(CommandMessages.error(
+          "Nutzung: /protect test <AKTION> <x> <y> <z> [perm=true|false]"));
     }
     ProtectionAction action;
     try {
       action = ProtectionAction.valueOf(args.get(1).toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException ex) {
-      return CommandResult.error(error("Unbekannte Aktion: " + args.get(1)));
+      return CommandResult.error(CommandMessages.error("Unbekannte Aktion: " + args.get(1)));
     }
     double x;
     double y;
@@ -227,7 +236,7 @@ public class DefaultCommands {
       y = Double.parseDouble(args.get(3));
       z = Double.parseDouble(args.get(4));
     } catch (NumberFormatException ex) {
-      return CommandResult.error(error("Koordinaten müssen Zahlen sein."));
+      return CommandResult.error(CommandMessages.error("Koordinaten müssen Zahlen sein."));
     }
     boolean hasBypass = args.size() > 5 && "true".equalsIgnoreCase(args.get(5));
     FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
@@ -245,72 +254,184 @@ public class DefaultCommands {
         config.farmWorld.instanceId);
     ProtectionZoneResult zone = protectionService.resolveZone(request);
     boolean allowed = protectionService.isActionAllowed(request);
-    return CommandResult.ok(info("Schutz-Test für " + action + ": " +
+    return CommandResult.ok(CommandMessages.info("Schutz-Test für " + action + ": " +
         (allowed ? "erlaubt" : "blockiert") + " (Entfernung=" + Math.round(zone.distance) +
         ", Zone=" + (zone.name == null || zone.name.isBlank() ? "default" : zone.name) +
         ", Bypass=" + (hasBypass ? "ja" : "nein") + ")."));
   }
 
+  private static CommandResult handleProtectionStatus(
+      List<String> args,
+      String actorId,
+      ProtectionService protectionService,
+      FarmWorldConfig config) {
+    if (args.size() < 4) {
+      return CommandResult.error(CommandMessages.error(
+          "Nutzung: /protect status <x> <y> <z> [worldId] [instanceId]"));
+    }
+    double x;
+    double y;
+    double z;
+    try {
+      x = Double.parseDouble(args.get(1));
+      y = Double.parseDouble(args.get(2));
+      z = Double.parseDouble(args.get(3));
+    } catch (NumberFormatException ex) {
+      return CommandResult.error(CommandMessages.error("Koordinaten müssen Zahlen sein."));
+    }
+    String worldId = args.size() > 4 ? args.get(4) : config.farmWorld.worldId;
+    String instanceId = args.size() > 5 ? args.get(5) : config.farmWorld.instanceId;
+    FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
+    ProtectionCheckRequest request = new ProtectionCheckRequest(
+        actorId,
+        ProtectionAction.INTERACT,
+        x,
+        y,
+        z,
+        center.x,
+        center.y,
+        center.z,
+        false,
+        worldId,
+        instanceId);
+    ProtectionZoneResult zone = protectionService.resolveZone(request);
+    String zoneName = zone.name == null || zone.name.isBlank() ? "default" : zone.name;
+    String state = zone.inside ? "IN" : "OUT";
+    return CommandResult.ok(CommandMessages.info("Schutzstatus: " + state +
+        " (Zone=" + zoneName +
+        ", Distanz=" + Math.round(zone.distance) +
+        ", Radius=" + Math.round(zone.radius) + ")."));
+  }
+
+  private static CommandResult handleProtectionAdd(
+      List<String> args,
+      FarmWorldService farmWorldService) {
+    if (args.size() < 5) {
+      return CommandResult.error(CommandMessages.error(
+          "Nutzung: /protect add <x> <y> <z> <radius> [name]"));
+    }
+    double x;
+    double y;
+    double z;
+    double radius;
+    try {
+      x = Double.parseDouble(args.get(1));
+      y = Double.parseDouble(args.get(2));
+      z = Double.parseDouble(args.get(3));
+      radius = Double.parseDouble(args.get(4));
+    } catch (NumberFormatException ex) {
+      return CommandResult.error(CommandMessages.error("Koordinaten und Radius müssen Zahlen sein."));
+    }
+    if (radius <= 0) {
+      return CommandResult.error(CommandMessages.error("Radius muss größer als 0 sein."));
+    }
+    String name = args.size() > 5 ? String.join(" ", args.subList(5, args.size())) : "";
+    ProtectionPoint point = new ProtectionPoint();
+    point.id = generatePointId(farmWorldService.getConfig().protection.points);
+    point.name = name == null ? "" : name;
+    point.x = x;
+    point.y = y;
+    point.z = z;
+    point.radius = radius;
+    farmWorldService.updateProtection(protection -> protection.points.add(point));
+    String label = point.name == null || point.name.isBlank() ? "ohne Namen" : point.name;
+    return CommandResult.ok(CommandMessages.success(
+        "Schutzpunkt hinzugefügt: " + label + " (ID=" + point.id + ", r=" +
+            CommandMessages.formatCoordinate(point.radius) + ")."));
+  }
+
+  private static CommandResult handleProtectionRemove(
+      List<String> args,
+      FarmWorldService farmWorldService) {
+    if (args.size() < 2) {
+      return CommandResult.error(CommandMessages.error("Nutzung: /protect remove <name|id>"));
+    }
+    String target = String.join(" ", args.subList(1, args.size())).trim();
+    if (target.isBlank()) {
+      return CommandResult.error(CommandMessages.error("Name oder ID fehlen."));
+    }
+    AtomicInteger removed = new AtomicInteger();
+    farmWorldService.updateProtection(protection -> {
+      protection.points.removeIf(point -> {
+        if (point == null) {
+          return false;
+        }
+        if (point.id != null && point.id.equalsIgnoreCase(target)) {
+          removed.incrementAndGet();
+          return true;
+        }
+        if (point.name != null && point.name.equalsIgnoreCase(target)) {
+          removed.incrementAndGet();
+          return true;
+        }
+        return false;
+      });
+    });
+    if (removed.get() == 0) {
+      return CommandResult.error(CommandMessages.error("Kein Schutzpunkt gefunden: " + target + "."));
+    }
+    return CommandResult.ok(CommandMessages.success("Schutzpunkt entfernt: " + target + "."));
+  }
+
+  private static CommandResult handleProtectionList(
+      List<String> args,
+      FarmWorldConfig config) {
+    List<ProtectionPoint> points = config.protection.points == null ? List.of() : config.protection.points;
+    if (points.isEmpty()) {
+      return CommandResult.ok(CommandMessages.info("Keine Schutzpunkte definiert."));
+    }
+    List<String> lines = new ArrayList<>();
+    for (ProtectionPoint point : points) {
+      if (point == null) {
+        continue;
+      }
+      String name = point.name == null || point.name.isBlank() ? "ohne Namen" : point.name;
+      String id = point.id == null || point.id.isBlank() ? "ohne-id" : point.id;
+      lines.add("ID=" + id +
+          ", Name=" + name +
+          ", Pos=" + CommandMessages.formatCoordinate(point.x) + " " +
+          CommandMessages.formatCoordinate(point.y) + " " +
+          CommandMessages.formatCoordinate(point.z) +
+          ", r=" + CommandMessages.formatCoordinate(point.radius));
+    }
+    return CommandResult.ok(CommandMessages.prefixLines(lines, "[INFO] "));
+  }
+
   private static String formatFarmStatus(FarmWorldService farmWorldService) {
     FarmWorldStatus status = farmWorldService.getStatus();
-    return prefixLines(List.of(
+    FarmWorldSpawn spawn = farmWorldService.resolveSpawn();
+    ProtectionActions actions = farmWorldService.getConfig().protection.actions;
+    return CommandMessages.prefixLines(List.of(
         "Farmwelt: " + status.worldId + "/" + status.instanceId,
+        "Spawn: " + CommandMessages.formatCoordinate(spawn.x) + " " +
+            CommandMessages.formatCoordinate(spawn.y) + " " +
+            CommandMessages.formatCoordinate(spawn.z),
+        "Prefab: " + farmWorldService.getConfig().farmWorld.prefabSpawnId,
         "Reset-Intervall: " + status.resetIntervalDays + " Tage",
+        "Nächster Reset in: " + CommandMessages.formatSecondsUntil(status.nextResetEpochSeconds),
         "Letzter Reset: " + status.lastResetEpochSeconds,
-        "Nächster Reset: " + status.nextResetEpochSeconds,
-        "Letzter Check: " + status.lastCheck), "[INFO] ");
+        "Letzter Check: " + status.lastCheck,
+        "Schutz aktiv: " + (farmWorldService.getConfig().protection.enabled ? "ja" : "nein"),
+        "Schutz-Aktionen: place=" + actions.place +
+            ", break=" + actions.breakBlock +
+            ", interact=" + actions.interact +
+            ", damage=" + actions.damage +
+            ", explosion=" + actions.explosion +
+            ", fire=" + actions.fireSpread +
+            ", liquid=" + actions.liquid), "[INFO] ");
   }
 
-  private static String formatProtectionStatus(FarmWorldConfig config) {
-    ProtectionActions actions = config.protection.actions;
-    List<String> lines = new ArrayList<>();
-    lines.add("Schutz: " + (config.protection.enabled ? "aktiv" : "deaktiviert"));
-    if (config.protection.points != null && !config.protection.points.isEmpty()) {
-      String points = config.protection.points.stream()
-          .map(point -> (point.name == null || point.name.isBlank() ? "unbenannt" : point.name) +
-              " (r=" + point.radius + ")")
-          .collect(Collectors.joining(", "));
-      lines.add("Schutzpunkte: " + points);
-    } else {
-      FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
-      lines.add("Radius: " + config.protection.radius);
-      lines.add("Zentrum: " + formatCoordinate(center.x) + " " +
-          formatCoordinate(center.y) + " " + formatCoordinate(center.z));
+  private static String generatePointId(List<ProtectionPoint> points) {
+    String base = "p" + Long.toString(System.currentTimeMillis(), 36);
+    if (points == null) {
+      return base;
     }
-    lines.add("Welt: " + config.farmWorld.worldId + "/" + config.farmWorld.instanceId);
-    lines.add("Aktionen: place=" + actions.place +
-        ", break=" + actions.breakBlock +
-        ", interact=" + actions.interact +
-        ", damage=" + actions.damage +
-        ", explosion=" + actions.explosion +
-        ", fire=" + actions.fireSpread +
-        ", liquid=" + actions.liquid);
-    return prefixLines(lines, "[INFO] ");
-  }
-
-  private static String success(String message) {
-    return PREFIX + "[OK] " + message;
-  }
-
-  private static String info(String message) {
-    return PREFIX + "[INFO] " + message;
-  }
-
-  private static String error(String message) {
-    return PREFIX + "[FEHLER] " + message;
-  }
-
-  private static String prefixLines(List<String> lines, String label) {
-    return lines.stream()
-        .map(line -> PREFIX + label + line)
-        .collect(Collectors.joining("\n"));
-  }
-
-  private static String formatCoordinate(double value) {
-    long rounded = Math.round(value);
-    if (Math.abs(value - rounded) < 0.0001) {
-      return String.valueOf(rounded);
+    String candidate = base;
+    int counter = 1;
+    while (points.stream().anyMatch(point -> point != null && candidate.equalsIgnoreCase(point.id))) {
+      candidate = base + counter;
+      counter++;
     }
-    return String.format(Locale.ROOT, "%.2f", value);
+    return candidate;
   }
 }

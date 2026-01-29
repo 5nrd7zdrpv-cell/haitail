@@ -99,6 +99,19 @@ public class CombatTagService {
     return remaining;
   }
 
+  public long getRemainingCombatMillis(UUID playerId) {
+    Instant expiresAt = tags.get(playerId);
+    if (expiresAt == null) {
+      return 0L;
+    }
+    long remaining = expiresAt.toEpochMilli() - Instant.now().toEpochMilli();
+    if (remaining <= 0L) {
+      tags.remove(playerId);
+      return 0L;
+    }
+    return remaining;
+  }
+
   public void clear(UUID playerId) {
     tags.remove(playerId);
   }
