@@ -18,9 +18,10 @@
     "enabled": true,
     "radius": 64,
     "center": null,
+    "points": [],
     "bypassRoles": [],
     "bypassPermissions": [],
-    "bypassPermission": "efd.farmworld.admin",
+    "bypassPermission": "farmworld.admin",
     "actions": {
       "place": true,
       "breakBlock": true,
@@ -33,7 +34,7 @@
   },
   "combat": {
     "enabled": true,
-    "tagSeconds": 20,
+    "tagSeconds": 15,
     "onQuit": "NONE",
     "penaltySeconds": 30
   }
