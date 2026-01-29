@@ -41,6 +41,17 @@ public class ConfigManager {
     return config;
   }
 
+  public void save(FarmWorldConfig config) {
+    JsonObject json = gson.toJsonTree(config).getAsJsonObject();
+    Path overridePath = Path.of(OVERRIDE_CONFIG_PATH);
+    try {
+      Files.createDirectories(overridePath.getParent());
+      Files.writeString(overridePath, gson.toJson(json), StandardCharsets.UTF_8);
+    } catch (IOException ex) {
+      throw new RuntimeException("Failed to write config to " + overridePath.toAbsolutePath(), ex);
+    }
+  }
+
   private JsonObject loadDefaults() {
     try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(DEFAULT_CONFIG_PATH)) {
       if (inputStream == null) {

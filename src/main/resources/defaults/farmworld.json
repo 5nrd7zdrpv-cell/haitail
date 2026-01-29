@@ -1,23 +1,25 @@
 {
   "farmWorld": {
-    "name": "farm",
+    "worldId": "farm",
+    "instanceId": "default",
     "resetIntervalDays": 7,
-    "resetAt": "SUN 04:00",
-    "seed": "",
+    "prefabSpawnId": "prefabs/farm_spawn.prefab",
     "spawn": {
       "x": 0,
       "y": 80,
       "z": 0,
-      "prefabPath": "prefabs/farm_spawn.prefab",
-      "prefabOffsetX": 0,
-      "prefabOffsetY": 0,
-      "prefabOffsetZ": 0
+      "worldId": "",
+      "instanceId": ""
     }
   },
   "lastResetEpochSeconds": 1769472383,
+  "nextResetEpochSeconds": 1769472383,
   "protection": {
     "enabled": true,
     "radius": 64,
+    "center": null,
+    "bypassRoles": [],
+    "bypassPermissions": [],
     "bypassPermission": "efd.farmworld.admin",
     "actions": {
       "place": true,

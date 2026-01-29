@@ -2,12 +2,21 @@ package com.efd.hytale.farmworld.shared.services;
 
 import com.efd.hytale.farmworld.shared.config.ProtectionActions;
 import com.efd.hytale.farmworld.shared.config.ProtectionConfig;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 public class ProtectionService {
   private final ProtectionConfig config;
+  private final Logger logger;
+  private final Map<String, Instant> lastDeniedLog = new ConcurrentHashMap<>();
+  private final Duration logCooldown = Duration.ofSeconds(5);
 
-  public ProtectionService(ProtectionConfig config) {
+  public ProtectionService(ProtectionConfig config, Logger logger) {
     this.config = config;
+    this.logger = logger;
   }
 
   public boolean isActionAllowed(ProtectionCheckRequest request) {
@@ -21,7 +30,7 @@ public class ProtectionService {
       return true;
     }
     ProtectionActions actions = config.actions;
-    return switch (request.action) {
+    boolean allowed = switch (request.action) {
       case PLACE -> !actions.place;
       case BREAK_BLOCK -> !actions.breakBlock;
       case INTERACT -> !actions.interact;
@@ -30,5 +39,26 @@ public class ProtectionService {
       case FIRE_SPREAD -> !actions.fireSpread;
       case LIQUID -> !actions.liquid;
     };
+    if (!allowed) {
+      logDenied(request);
+    }
+    return allowed;
+  }
+
+  private void logDenied(ProtectionCheckRequest request) {
+    if (logger == null) {
+      return;
+    }
+    String key = request.actorId + ":" + request.action;
+    Instant now = Instant.now();
+    Instant last = lastDeniedLog.get(key);
+    if (last != null && Duration.between(last, now).compareTo(logCooldown) < 0) {
+      return;
+    }
+    lastDeniedLog.put(key, now);
+    logger.info("Protection denied " + request.action +
+        " by " + request.actorId +
+        " at " + request.worldId + "/" + request.instanceId +
+        " (distance=" + request.distanceFromSpawn + ").");
   }
 }

@@ -3,22 +3,25 @@ package com.efd.hytale.farmworld.shared.services;
 import java.time.Instant;
 
 public class FarmWorldStatus {
-  public final String worldName;
+  public final String worldId;
+  public final String instanceId;
   public final int resetIntervalDays;
-  public final String resetAt;
   public final long lastResetEpochSeconds;
+  public final long nextResetEpochSeconds;
   public final Instant lastCheck;
 
   public FarmWorldStatus(
-      String worldName,
+      String worldId,
+      String instanceId,
       int resetIntervalDays,
-      String resetAt,
       long lastResetEpochSeconds,
+      long nextResetEpochSeconds,
       Instant lastCheck) {
-    this.worldName = worldName;
+    this.worldId = worldId;
+    this.instanceId = instanceId;
     this.resetIntervalDays = resetIntervalDays;
-    this.resetAt = resetAt;
     this.lastResetEpochSeconds = lastResetEpochSeconds;
+    this.nextResetEpochSeconds = nextResetEpochSeconds;
     this.lastCheck = lastCheck;
   }
 }
