@@ -153,6 +153,12 @@ public class DefaultCommands {
     String rawTarget = args.size() > 1 ? args.get(1) : actorId;
     UUID targetId = combatService.resolvePlayerId(rawTarget);
     String displayName = combatService.describePlayer(rawTarget);
+    if (targetId == null) {
+      if (rawTarget == null || rawTarget.isBlank()) {
+        return CommandResult.error(CommandMessages.error("Spieler nicht gefunden."));
+      }
+      return CommandResult.error(CommandMessages.error("Spieler nicht gefunden: " + rawTarget + "."));
+    }
     if (targetId == null || !combatService.isInCombat(targetId)) {
       return CommandResult.ok(CommandMessages.info(displayName + " ist nicht im Kampf."));
     }
@@ -166,6 +172,12 @@ public class DefaultCommands {
       CombatTagService combatService) {
     String rawTarget = args.size() > 1 ? args.get(1) : actorId;
     UUID targetId = combatService.resolvePlayerId(rawTarget);
+    if (targetId == null) {
+      if (rawTarget == null || rawTarget.isBlank()) {
+        return CommandResult.error(CommandMessages.error("Spieler nicht gefunden."));
+      }
+      return CommandResult.error(CommandMessages.error("Spieler nicht gefunden: " + rawTarget + "."));
+    }
     boolean canWarp = targetId == null || !combatService.isInCombat(targetId);
     String displayName = combatService.describePlayer(rawTarget);
     return CommandResult.ok(CommandMessages.info("Warp für " + displayName + ": " +
