@@ -56,6 +56,10 @@ public class ProtectionBridge {
     return check(actorId, ProtectionAction.INTERACT, x, y, z, worldId, instanceId, permissions, roles);
   }
 
+  public boolean shouldNotify(String actorId) {
+    return protectionService.shouldNotify(actorId);
+  }
+
   private boolean check(
       String actorId,
       ProtectionAction action,
@@ -75,12 +79,16 @@ public class ProtectionBridge {
     if (!centerWorld.equalsIgnoreCase(resolvedWorldId) || !centerInstance.equalsIgnoreCase(resolvedInstanceId)) {
       return true;
     }
-    double distance = distance(center.x, center.y, center.z, x, y, z);
     boolean hasBypass = hasBypass(permissions, roles);
     ProtectionCheckRequest request = new ProtectionCheckRequest(
         actorId,
         action,
-        distance,
+        x,
+        y,
+        z,
+        center.x,
+        center.y,
+        center.z,
         hasBypass,
         resolvedWorldId,
         resolvedInstanceId);
@@ -128,10 +136,4 @@ public class ProtectionBridge {
     return value;
   }
 
-  private double distance(double ax, double ay, double az, double bx, double by, double bz) {
-    double dx = ax - bx;
-    double dy = ay - by;
-    double dz = az - bz;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
 }

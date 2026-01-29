@@ -36,11 +36,6 @@ public class CombatDamageEventSystem extends EntityEventSystem<EntityStore, Dama
     if (target == null) {
       return;
     }
-    PlayerRef targetRefComponent = target.getPlayerRef();
-    if (targetRefComponent != null) {
-      combatService.recordPlayer(targetRefComponent.getUuid(), target.getDisplayName());
-      combatService.tag(targetRefComponent.getUuid());
-    }
     Damage.Source source = damage.getSource();
     if (source instanceof Damage.EntitySource entitySource) {
       Ref<EntityStore> sourceRef = entitySource.getRef();
@@ -51,9 +46,14 @@ public class CombatDamageEventSystem extends EntityEventSystem<EntityStore, Dama
       if (attacker == null) {
         return;
       }
+      PlayerRef targetRefComponent = target.getPlayerRef();
+      if (targetRefComponent != null) {
+        combatService.recordPlayer(targetRefComponent.getUuid(), targetRefComponent.getUsername());
+        combatService.tag(targetRefComponent.getUuid());
+      }
       PlayerRef attackerRef = attacker.getPlayerRef();
       if (attackerRef != null) {
-        combatService.recordPlayer(attackerRef.getUuid(), attacker.getDisplayName());
+        combatService.recordPlayer(attackerRef.getUuid(), attackerRef.getUsername());
         combatService.tag(attackerRef.getUuid());
       }
     }

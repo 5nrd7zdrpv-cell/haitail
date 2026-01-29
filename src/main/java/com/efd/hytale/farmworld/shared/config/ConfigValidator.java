@@ -60,6 +60,10 @@ public final class ConfigValidator {
         config.protection.center.instanceId = "";
       }
     }
+    if (config.protection.points == null) {
+      warnings.add(PREFIX + "protection.points fehlt; Standardwert leer wird gesetzt.");
+      config.protection.points = new ArrayList<>();
+    }
     if (config.protection.bypassRoles == null) {
       warnings.add(PREFIX + "protection.bypassRoles fehlt; Standardwert leer wird gesetzt.");
       config.protection.bypassRoles = java.util.List.of();

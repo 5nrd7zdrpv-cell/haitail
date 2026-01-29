@@ -79,6 +79,15 @@ public class FarmWorldService {
     configStore.save(config);
   }
 
+  public void updateProtection(java.util.function.Consumer<com.efd.hytale.farmworld.shared.config.ProtectionConfig> updater) {
+    updater.accept(config.protection);
+    configStore.save(config);
+  }
+
+  public FarmWorldConfig getConfig() {
+    return config;
+  }
+
   public FarmWorldSpawn getSpawn() {
     return config.farmWorld.spawn;
   }

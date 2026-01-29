@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -43,8 +44,9 @@ public class ProtectionPlaceBlockEventSystem extends EntityEventSystem<EntitySto
     if (target == null) {
       return;
     }
+    String actorName = ProtectionPermissionHelper.resolveActorName(player);
     boolean allowed = protectionBridge.onBlockPlace(
-        player.getDisplayName(),
+        actorName,
         target.x,
         target.y,
         target.z,
@@ -54,6 +56,9 @@ public class ProtectionPlaceBlockEventSystem extends EntityEventSystem<EntitySto
         List.of());
     if (!allowed) {
       event.setCancelled(true);
+      if (protectionBridge.shouldNotify(actorName)) {
+        player.sendMessage(Message.raw("[FarmWorld] ❌ Du befindest dich in einer Schutzzone."));
+      }
     }
   }
 

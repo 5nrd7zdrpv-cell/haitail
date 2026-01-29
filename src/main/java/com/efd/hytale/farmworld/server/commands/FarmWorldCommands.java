@@ -4,8 +4,12 @@ import com.efd.hytale.farmworld.shared.commands.CommandRegistry;
 import com.efd.hytale.farmworld.shared.commands.CommandResult;
 import com.efd.hytale.farmworld.shared.config.FarmWorldConfig;
 import com.efd.hytale.farmworld.shared.config.FarmWorldSpawn;
+import com.efd.hytale.farmworld.shared.config.ProtectionPoint;
 import com.efd.hytale.farmworld.shared.services.CombatTagService;
 import com.efd.hytale.farmworld.shared.services.FarmWorldService;
+import com.efd.hytale.farmworld.shared.services.ProtectionCheckRequest;
+import com.efd.hytale.farmworld.shared.services.ProtectionService;
+import com.efd.hytale.farmworld.shared.services.ProtectionZoneResult;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
@@ -18,12 +22,16 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.math.vector.Vector3d;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
 public final class FarmWorldCommands {
   private FarmWorldCommands() {}
+
+  private static final String USE_PERMISSION = "";
+  private static final String PREFIX = "[FarmWorld] ";
 
   public static AbstractCommandCollection createFarmCommand(
       CommandRegistry registry,
@@ -36,8 +44,10 @@ public final class FarmWorldCommands {
   public static AbstractCommandCollection createProtectCommand(
       CommandRegistry registry,
       String adminPermission,
-      FarmWorldConfig config) {
-    return new ProtectCommand(registry, adminPermission, config);
+      FarmWorldConfig config,
+      FarmWorldService farmWorldService,
+      ProtectionService protectionService) {
+    return new ProtectCommand(registry, adminPermission, config, farmWorldService, protectionService);
   }
 
   public static AbstractCommandCollection createCombatCommand(
@@ -57,10 +67,13 @@ public final class FarmWorldCommands {
   }
 
   private static boolean ensurePermission(CommandContext context, String permission) {
+    if (permission == null || permission.isBlank()) {
+      return true;
+    }
     if (context.sender().hasPermission(permission)) {
       return true;
     }
-    context.sendMessage(Message.raw("Missing permission: " + permission + "."));
+    context.sendMessage(Message.raw(error("Fehlende Berechtigung: " + permission + ".")));
     return false;
   }
 
@@ -84,7 +97,7 @@ public final class FarmWorldCommands {
     FarmStatusCommand(CommandRegistry registry) {
       super("status", "Zeigt den Farmwelt-Status.");
       this.registry = registry;
-      this.usePermission = usePermission;
+      this.usePermission = USE_PERMISSION;
     }
 
     @Override
@@ -178,13 +191,13 @@ public final class FarmWorldCommands {
       String firstArg = context.get(selfOrXArg);
       if ("self".equalsIgnoreCase(firstArg)) {
         if (!context.isPlayer()) {
-          context.sendMessage(Message.raw(prefix("Nur Spieler können /farm setspawn self verwenden.")));
+          context.sendMessage(Message.raw(error("Nur Spieler können /farm setspawn self verwenden.")));
           return;
         }
         Player player = context.senderAs(Player.class);
         TransformComponent transform = player.getTransformComponent();
         if (transform == null || transform.getPosition() == null) {
-          context.sendMessage(Message.raw(prefix("Position konnte nicht ermittelt werden.")));
+          context.sendMessage(Message.raw(error("Position konnte nicht ermittelt werden.")));
           return;
         }
         Vector3d position = transform.getPosition();
@@ -195,19 +208,19 @@ public final class FarmWorldCommands {
         spawn.worldId = player.getWorld() != null ? player.getWorld().getName() : config.farmWorld.worldId;
         spawn.instanceId = config.farmWorld.instanceId;
         farmWorldService.updateSpawn(spawn);
-        context.sendMessage(Message.raw(prefix("Spawn gespeichert: " +
+        context.sendMessage(Message.raw(success("Spawn gespeichert: " +
             formatCoordinate(spawn.x) + " " + formatCoordinate(spawn.y) + " " + formatCoordinate(spawn.z) + ".")));
         return;
       }
       if (!context.provided(yArg) || !context.provided(zArg)) {
-        context.sendMessage(Message.raw(prefix("Nutzung: /farm setspawn <x> <y> <z> [worldId] [instanceId]")));
+        context.sendMessage(Message.raw(error("Nutzung: /farm setspawn <x> <y> <z> [worldId] [instanceId]")));
         return;
       }
       double x;
       try {
         x = Double.parseDouble(firstArg);
       } catch (NumberFormatException ex) {
-        context.sendMessage(Message.raw(prefix("X muss eine Zahl sein oder 'self'.")));
+        context.sendMessage(Message.raw(error("X muss eine Zahl sein oder 'self'.")));
         return;
       }
       double y = context.get(yArg);
@@ -228,51 +241,226 @@ public final class FarmWorldCommands {
         spawn.instanceId = currentSpawn.instanceId;
       }
       farmWorldService.updateSpawn(spawn);
-      context.sendMessage(Message.raw(prefix("Spawn gespeichert: " +
+      context.sendMessage(Message.raw(success("Spawn gespeichert: " +
           formatCoordinate(spawn.x) + " " + formatCoordinate(spawn.y) + " " + formatCoordinate(spawn.z) + ".")));
     }
   }
 
   private static final class ProtectCommand extends AbstractCommandCollection {
-    ProtectCommand(CommandRegistry registry, String adminPermission, FarmWorldConfig config) {
+    ProtectCommand(
+        CommandRegistry registry,
+        String adminPermission,
+        FarmWorldConfig config,
+        FarmWorldService farmWorldService,
+        ProtectionService protectionService) {
       super("protect", "Schutzzone-Status und Test.");
-      addSubCommand(new ProtectStatusCommand(config));
+      addSubCommand(new ProtectStatusCommand(config, protectionService));
+      addSubCommand(new ProtectAddCommand(adminPermission, config, farmWorldService));
+      addSubCommand(new ProtectRemoveCommand(adminPermission, config, farmWorldService));
+      addSubCommand(new ProtectListCommand(config));
       addSubCommand(new ProtectTestCommand(registry, adminPermission));
     }
   }
 
   private static final class ProtectStatusCommand extends CommandBase {
     private final FarmWorldConfig config;
+    private final ProtectionService protectionService;
+    private final OptionalArg<String> targetArg;
 
-    ProtectStatusCommand(FarmWorldConfig config) {
+    ProtectStatusCommand(FarmWorldConfig config, ProtectionService protectionService) {
       super("status", "Zeigt den Schutzstatus.");
       this.config = config;
+      this.protectionService = protectionService;
+      targetArg = withOptionalArg("self|name", "self oder Schutzpunkt", ArgTypes.STRING);
+    }
+
+    @Override
+    protected void executeSync(CommandContext context) {
+      String target = context.provided(targetArg) ? context.get(targetArg) : "self";
+      if ("self".equalsIgnoreCase(target)) {
+        if (!context.isPlayer()) {
+          context.sendMessage(Message.raw(error("Nur Spieler können den Schutzstatus abfragen.")));
+          return;
+        }
+        Player player = context.senderAs(Player.class);
+        TransformComponent transform = player.getTransformComponent();
+        Vector3d position = transform != null ? transform.getPosition() : null;
+        if (position == null) {
+          context.sendMessage(Message.raw(error("Position konnte nicht ermittelt werden.")));
+          return;
+        }
+        FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
+        ProtectionCheckRequest request = new ProtectionCheckRequest(
+            "status",
+            com.efd.hytale.farmworld.shared.services.ProtectionAction.INTERACT,
+            position.x,
+            position.y,
+            position.z,
+            center.x,
+            center.y,
+            center.z,
+            false,
+            config.farmWorld.worldId,
+            config.farmWorld.instanceId);
+        ProtectionZoneResult zone = protectionService.resolveZone(request);
+        List<String> lines = new ArrayList<>();
+        lines.add("Schutz: " + (config.protection.enabled ? "aktiv" : "deaktiviert"));
+        if (config.protection.points != null && !config.protection.points.isEmpty()) {
+          String points = config.protection.points.stream()
+              .map(point -> (point.name == null || point.name.isBlank() ? "unbenannt" : point.name) +
+                  " (r=" + point.radius + ")")
+              .sorted()
+              .collect(java.util.stream.Collectors.joining(", "));
+          lines.add("Schutzpunkte: " + points);
+        } else {
+          lines.add("Radius: " + config.protection.radius);
+          lines.add("Zentrum: " + formatCoordinate(center.x) + " " +
+              formatCoordinate(center.y) + " " + formatCoordinate(center.z));
+        }
+        lines.add("Zone: " + (zone.name == null || zone.name.isBlank() ? "default" : zone.name));
+        lines.add("Entfernung: " + Math.round(zone.distance) + " Blöcke (" +
+            (zone.inside ? "INNERHALB" : "AUSSERHALB") + ")");
+        context.sendMessage(Message.raw(prefixLines(lines, "ℹ️ ")));
+        return;
+      }
+      ProtectionPoint point = findProtectionPoint(config, target);
+      if (point == null) {
+        context.sendMessage(Message.raw(error("Schutzpunkt nicht gefunden: " + target + ".")));
+        return;
+      }
+      List<String> lines = List.of(
+          "Schutzpunkt: " + point.name,
+          "Radius: " + point.radius,
+          "Position: " + formatCoordinate(point.x) + " " +
+              formatCoordinate(point.y) + " " + formatCoordinate(point.z));
+      context.sendMessage(Message.raw(prefixLines(lines, "ℹ️ ")));
+    }
+  }
+
+  private static final class ProtectAddCommand extends CommandBase {
+    private final FarmWorldConfig config;
+    private final FarmWorldService farmWorldService;
+    private final RequiredArg<String> nameArg;
+    private final RequiredArg<String> targetArg;
+    private final OptionalArg<Integer> radiusArg;
+
+    ProtectAddCommand(String adminPermission, FarmWorldConfig config, FarmWorldService farmWorldService) {
+      super("add", "Fügt einen Schutzpunkt hinzu.");
+      this.config = config;
+      this.farmWorldService = farmWorldService;
+      requirePermission(adminPermission);
+      nameArg = withRequiredArg("name", "Name", ArgTypes.STRING);
+      targetArg = withRequiredArg("self", "self", ArgTypes.STRING);
+      radiusArg = withOptionalArg("radius", "Radius", ArgTypes.INTEGER);
     }
 
     @Override
     protected void executeSync(CommandContext context) {
       if (!context.isPlayer()) {
-        context.sendMessage(Message.raw(prefix("Nur Spieler können den Schutzstatus abfragen.")));
+        context.sendMessage(Message.raw(error("Nur Spieler können Schutzpunkte setzen.")));
+        return;
+      }
+      String target = context.get(targetArg);
+      if (!"self".equalsIgnoreCase(target)) {
+        context.sendMessage(Message.raw(error("Nutzung: /protect add <name> self [radius]")));
+        return;
+      }
+      String name = context.get(nameArg);
+      if (name == null || name.isBlank()) {
+        context.sendMessage(Message.raw(error("Name darf nicht leer sein.")));
+        return;
+      }
+      if (findProtectionPoint(config, name) != null) {
+        context.sendMessage(Message.raw(error("Schutzpunkt existiert bereits: " + name + ".")));
         return;
       }
       Player player = context.senderAs(Player.class);
       TransformComponent transform = player.getTransformComponent();
       Vector3d position = transform != null ? transform.getPosition() : null;
       if (position == null) {
-        context.sendMessage(Message.raw(prefix("Position konnte nicht ermittelt werden.")));
+        context.sendMessage(Message.raw(error("Position konnte nicht ermittelt werden.")));
         return;
       }
-      FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
-      double distance = distance(center.x, center.y, center.z, position.x, position.y, position.z);
-      String status = config.protection.enabled ? "aktiv" : "deaktiviert";
-      boolean inside = distance <= config.protection.radius;
-      List<String> lines = List.of(
-          prefix("Schutz: " + status),
-          prefix("Radius: " + config.protection.radius),
-          prefix("Zentrum: " + formatCoordinate(center.x) + " " + formatCoordinate(center.y) + " " + formatCoordinate(center.z)),
-          prefix("Deine Entfernung: " + Math.round(distance) + " Blöcke (" +
-              (inside ? "INNERHALB" : "AUSSERHALB") + ")"));
-      context.sendMessage(Message.raw(String.join("\n", lines)));
+      int radius = config.protection.radius;
+      if (context.provided(radiusArg)) {
+        radius = context.get(radiusArg);
+      }
+      if (radius <= 0) {
+        context.sendMessage(Message.raw(error("Radius muss > 0 sein.")));
+        return;
+      }
+      ProtectionPoint point = new ProtectionPoint();
+      point.name = name;
+      point.x = position.x;
+      point.y = position.y;
+      point.z = position.z;
+      point.radius = radius;
+      farmWorldService.updateProtection(protection -> {
+        if (protection.points == null) {
+          protection.points = new java.util.ArrayList<>();
+        }
+        protection.points.add(point);
+      });
+      context.sendMessage(Message.raw(success("Schutzpunkt gespeichert: " + name + " (" +
+          formatCoordinate(point.x) + " " + formatCoordinate(point.y) + " " + formatCoordinate(point.z) +
+          ", r=" + radius + ").")));
+    }
+  }
+
+  private static final class ProtectRemoveCommand extends CommandBase {
+    private final FarmWorldConfig config;
+    private final FarmWorldService farmWorldService;
+    private final RequiredArg<String> nameArg;
+
+    ProtectRemoveCommand(String adminPermission, FarmWorldConfig config, FarmWorldService farmWorldService) {
+      super("remove", "Entfernt einen Schutzpunkt.");
+      this.config = config;
+      this.farmWorldService = farmWorldService;
+      requirePermission(adminPermission);
+      nameArg = withRequiredArg("name", "Name", ArgTypes.STRING);
+    }
+
+    @Override
+    protected void executeSync(CommandContext context) {
+      String name = context.get(nameArg);
+      ProtectionPoint point = findProtectionPoint(config, name);
+      if (point == null) {
+        context.sendMessage(Message.raw(error("Schutzpunkt nicht gefunden: " + name + ".")));
+        return;
+      }
+      farmWorldService.updateProtection(protection -> {
+        protection.points.removeIf(existing -> existing.name != null
+            && existing.name.equalsIgnoreCase(point.name));
+      });
+      context.sendMessage(Message.raw(success("Schutzpunkt entfernt: " + point.name + ".")));
+    }
+  }
+
+  private static final class ProtectListCommand extends CommandBase {
+    private final FarmWorldConfig config;
+
+    ProtectListCommand(FarmWorldConfig config) {
+      super("list", "Listet Schutzpunkte auf.");
+      this.config = config;
+    }
+
+    @Override
+    protected void executeSync(CommandContext context) {
+      if (config.protection.points == null || config.protection.points.isEmpty()) {
+        context.sendMessage(Message.raw(info("Keine Schutzpunkte gesetzt.")));
+        return;
+      }
+      List<ProtectionPoint> points = new ArrayList<>(config.protection.points);
+      points.sort(Comparator.comparing(point -> point.name == null ? "" : point.name.toLowerCase(Locale.ROOT)));
+      List<String> lines = new ArrayList<>();
+      lines.add("Schutzpunkte: " + points.size());
+      for (ProtectionPoint point : points) {
+        String name = point.name == null ? "unbenannt" : point.name;
+        lines.add("- " + name + " (r=" + point.radius + ") @ " +
+            formatCoordinate(point.x) + " " + formatCoordinate(point.y) + " " +
+            formatCoordinate(point.z));
+      }
+      context.sendMessage(Message.raw(prefixLines(lines, "ℹ️ ")));
     }
   }
 
@@ -331,11 +519,13 @@ public final class FarmWorldCommands {
     private final CommandRegistry registry;
     private final CombatTagService combatService;
     private final OptionalArg<PlayerRef> targetArg;
+    private final String usePermission;
 
     CombatStatusCommand(CommandRegistry registry, CombatTagService combatService) {
       super("status", "Prüft den Kampfstatus.");
       this.registry = registry;
       this.combatService = combatService;
+      this.usePermission = USE_PERMISSION;
       targetArg = withOptionalArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
     }
 
@@ -349,7 +539,7 @@ public final class FarmWorldCommands {
       if (context.provided(targetArg)) {
         PlayerRef target = context.get(targetArg);
         combatService.recordPlayer(target.getUuid(), target.getUsername());
-        args.add(target.getUuid().toString());
+        args.add(target.getUsername());
       }
       CommandResult result = registry.execute(actorId(context), "combat", args);
       sendResult(context, result);
@@ -360,11 +550,13 @@ public final class FarmWorldCommands {
     private final CommandRegistry registry;
     private final CombatTagService combatService;
     private final OptionalArg<PlayerRef> targetArg;
+    private final String usePermission;
 
     CombatCanWarpCommand(CommandRegistry registry, CombatTagService combatService) {
       super("canwarp", "Prüft, ob ein Spieler warpen darf.");
       this.registry = registry;
       this.combatService = combatService;
+      this.usePermission = USE_PERMISSION;
       targetArg = withOptionalArg("spieler", "Spieler", ArgTypes.PLAYER_REF);
     }
 
@@ -378,7 +570,7 @@ public final class FarmWorldCommands {
       if (context.provided(targetArg)) {
         PlayerRef target = context.get(targetArg);
         combatService.recordPlayer(target.getUuid(), target.getUsername());
-        args.add(target.getUuid().toString());
+        args.add(target.getUsername());
       }
       CommandResult result = registry.execute(actorId(context), "combat", args);
       sendResult(context, result);
@@ -476,8 +668,20 @@ public final class FarmWorldCommands {
     }
   }
 
-  private static String prefix(String message) {
-    return "[FarmWorld] " + message;
+  private static String success(String message) {
+    return PREFIX + "✅ " + message;
+  }
+
+  private static String info(String message) {
+    return PREFIX + "ℹ️ " + message;
+  }
+
+  private static String error(String message) {
+    return PREFIX + "❌ " + message;
+  }
+
+  private static String prefixLines(List<String> lines, String emoji) {
+    return lines.stream().map(line -> PREFIX + emoji + line).collect(java.util.stream.Collectors.joining("\n"));
   }
 
   private static String formatCoordinate(double value) {
@@ -488,10 +692,16 @@ public final class FarmWorldCommands {
     return String.format(Locale.ROOT, "%.2f", value);
   }
 
-  private static double distance(double ax, double ay, double az, double bx, double by, double bz) {
-    double dx = ax - bx;
-    double dy = ay - by;
-    double dz = az - bz;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  private static ProtectionPoint findProtectionPoint(FarmWorldConfig config, String name) {
+    if (config == null || config.protection == null || config.protection.points == null) {
+      return null;
+    }
+    String normalized = name == null ? "" : name.toLowerCase(Locale.ROOT);
+    for (ProtectionPoint point : config.protection.points) {
+      if (point != null && point.name != null && point.name.toLowerCase(Locale.ROOT).equals(normalized)) {
+        return point;
+      }
+    }
+    return null;
   }
 }

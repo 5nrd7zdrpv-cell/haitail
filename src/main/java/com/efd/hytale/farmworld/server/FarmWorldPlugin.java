@@ -13,7 +13,9 @@ import com.efd.hytale.farmworld.server.commands.FarmWorldCommands;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.DrainPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
@@ -63,7 +65,7 @@ public class FarmWorldPlugin extends JavaPlugin {
 
     ExecutorScheduler scheduler = new ExecutorScheduler(executorService);
     AsyncConfigStore configStore = new AsyncConfigStore(configManager, executorService, logger);
-    FarmWorldWorldAdapter worldAdapter = new LoggingFarmWorldWorldAdapter(logger);
+    FarmWorldWorldAdapter worldAdapter = new ServerFarmWorldWorldAdapter(logger);
     farmWorldService = new FarmWorldService(config, scheduler, configStore, worldAdapter, logger);
     combatService = new CombatTagService(config.combat);
     protectionService = new ProtectionService(config.protection, logger);
@@ -84,7 +86,7 @@ public class FarmWorldPlugin extends JavaPlugin {
         FarmWorldCommands.createFarmCommand(registry, adminPermission, farmWorldService, config));
     logger.info("[FarmWorld] Root-Befehl registriert: /farm.");
     getCommandRegistry().registerCommand(
-        FarmWorldCommands.createProtectCommand(registry, adminPermission, config));
+        FarmWorldCommands.createProtectCommand(registry, adminPermission, config, farmWorldService, protectionService));
     logger.info("[FarmWorld] Root-Befehl registriert: /protect.");
     getCommandRegistry().registerCommand(
         FarmWorldCommands.createCombatCommand(registry, adminPermission, combatService));
@@ -151,10 +153,11 @@ public class FarmWorldPlugin extends JavaPlugin {
 
   private void registerEventHandlers() {
     getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
-    getEventRegistry().register(PlayerReadyEvent.class, this::onPlayerReady);
+    getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
+    getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, this::onPlayerAddedToWorld);
     getEventRegistry().register(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
-    getEventRegistry().register(PlayerInteractEvent.class, this::onPlayerInteract);
-    getEventRegistry().register(DrainPlayerFromWorldEvent.class, this::onPlayerDrain);
+    getEventRegistry().registerGlobal(PlayerInteractEvent.class, this::onPlayerInteract);
+    getEventRegistry().registerGlobal(DrainPlayerFromWorldEvent.class, this::onPlayerDrain);
     getEntityStoreRegistry().registerSystem(new CombatDamageEventSystem(combatService));
     getEntityStoreRegistry().registerSystem(new ProtectionBreakBlockEventSystem(protectionBridge, config));
     getEntityStoreRegistry().registerSystem(new ProtectionPlaceBlockEventSystem(protectionBridge, config));
@@ -174,9 +177,17 @@ public class FarmWorldPlugin extends JavaPlugin {
     }
     PlayerRef playerRef = player.getPlayerRef();
     if (playerRef != null) {
-      combatService.recordPlayer(playerRef.getUuid(), player.getDisplayName());
+      combatService.recordPlayer(playerRef.getUuid(), playerRef.getUsername());
     }
     applySpawn(player, event.getPlayer().getWorld());
+  }
+
+  private void onPlayerAddedToWorld(AddPlayerToWorldEvent event) {
+    Player player = event.getHolder().getComponent(Player.getComponentType());
+    if (player == null) {
+      return;
+    }
+    applySpawn(player, event.getWorld());
   }
 
   private void onPlayerDisconnect(PlayerDisconnectEvent event) {
@@ -194,8 +205,9 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (player == null || event.getTargetBlock() == null || player.getWorld() == null) {
       return;
     }
+    String actorName = ProtectionPermissionHelper.resolveActorName(player);
     boolean allowed = protectionBridge.onInteract(
-        player.getDisplayName(),
+        actorName,
         event.getTargetBlock().x,
         event.getTargetBlock().y,
         event.getTargetBlock().z,
@@ -205,6 +217,9 @@ public class FarmWorldPlugin extends JavaPlugin {
         List.of());
     if (!allowed) {
       event.setCancelled(true);
+      if (protectionBridge.shouldNotify(actorName)) {
+        player.sendMessage(Message.raw("[FarmWorld] ❌ Du befindest dich in einer Schutzzone."));
+      }
     }
   }
 
@@ -220,6 +235,10 @@ public class FarmWorldPlugin extends JavaPlugin {
     com.efd.hytale.farmworld.shared.config.FarmWorldSpawn spawn = farmWorldService.resolveSpawn();
     if (!world.getName().equalsIgnoreCase(spawn.worldId)) {
       return;
+    }
+    PlayerRef playerRef = player.getPlayerRef();
+    if (playerRef != null && combatService.isInCombat(playerRef.getUuid())) {
+      logger.warning("[FarmWorld] Combat-Logout: " + playerRef.getUsername());
     }
     Vector3f rotation = event.getTransform() != null ? event.getTransform().getRotation() : Vector3f.ZERO;
     event.setTransform(new Transform(new Vector3d(spawn.x, spawn.y, spawn.z), rotation));

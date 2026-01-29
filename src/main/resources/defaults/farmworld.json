@@ -18,6 +18,7 @@
     "enabled": true,
     "radius": 64,
     "center": null,
+    "points": [],
     "bypassRoles": [],
     "bypassPermissions": [],
     "bypassPermission": "farmworld.admin",
