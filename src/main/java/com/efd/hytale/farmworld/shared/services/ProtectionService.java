@@ -56,9 +56,9 @@ public class ProtectionService {
       return;
     }
     lastDeniedLog.put(key, now);
-    logger.info("Protection denied " + request.action +
-        " by " + request.actorId +
-        " at " + request.worldId + "/" + request.instanceId +
-        " (distance=" + request.distanceFromSpawn + ").");
+    logger.info("[FarmWorld] Schutz verweigert: " + request.action +
+        " durch " + request.actorId +
+        " bei " + request.worldId + "/" + request.instanceId +
+        " (Entfernung=" + Math.round(request.distanceFromSpawn) + ").");
   }
 }

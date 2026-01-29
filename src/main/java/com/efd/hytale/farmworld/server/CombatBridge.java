@@ -1,6 +1,7 @@
 package com.efd.hytale.farmworld.server;
 
 import com.efd.hytale.farmworld.shared.services.CombatTagService;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 public class CombatBridge {
@@ -12,15 +13,16 @@ public class CombatBridge {
     this.logger = logger;
   }
 
-  public void onDamage(String playerId, long durationSeconds, String reason) {
-    combatTagService.tag(playerId, durationSeconds, reason);
-    String durationLabel = durationSeconds > 0 ? durationSeconds + "s" : "default duration";
-    logger.info("Combat tag applied to " + playerId + " for " + durationLabel + " (reason=" + reason + ").");
+  public void onDamage(UUID playerId, long durationSeconds, String playerName) {
+    combatTagService.recordPlayer(playerId, playerName);
+    combatTagService.tag(playerId, durationSeconds);
+    String durationLabel = durationSeconds > 0 ? durationSeconds + "s" : "Standarddauer";
+    logger.info("[FarmWorld] Kampftag gesetzt für " + playerName + " (" + durationLabel + ").");
   }
 
-  public void onDisconnect(String playerId) {
+  public void onDisconnect(UUID playerId, String playerName) {
     if (combatTagService.isInCombat(playerId)) {
-      logger.warning("Combat log detected for " + playerId + ".");
+      logger.warning("[FarmWorld] Combat-Logout: " + playerName);
     }
   }
 }

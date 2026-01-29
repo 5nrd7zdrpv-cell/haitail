@@ -17,11 +17,11 @@ public class CommandRegistry {
   public CommandResult execute(String actorId, String commandName, List<String> args) {
     CommandDefinition definition = commands.get(commandName.toLowerCase(Locale.ROOT));
     if (definition == null) {
-      return CommandResult.error("Unknown command: " + commandName);
+      return CommandResult.error("[FarmWorld] Unbekannter Befehl: " + commandName);
     }
     int requiredCount = (int) definition.arguments.stream().filter(arg -> arg.required).count();
     if (args.size() < requiredCount) {
-      return CommandResult.error("Missing arguments for " + definition.name + ".");
+      return CommandResult.error("[FarmWorld] Fehlende Argumente für " + definition.name + ".");
     }
     return definition.handler.handle(new CommandContext(actorId, args));
   }
