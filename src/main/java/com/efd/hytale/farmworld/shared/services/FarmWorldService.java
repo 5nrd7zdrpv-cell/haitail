@@ -146,6 +146,9 @@ public class FarmWorldService {
   }
 
   private FarmWorldSpawn resolveSpawn(FarmWorldSpawn spawn) {
+    if (spawn == null) {
+      spawn = new FarmWorldSpawn();
+    }
     FarmWorldSpawn resolved = new FarmWorldSpawn();
     resolved.x = spawn.x;
     resolved.y = spawn.y;

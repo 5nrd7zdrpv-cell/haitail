@@ -58,6 +58,7 @@ public class ProtectionService {
         ? List.of()
         : config.points.stream().filter(Objects::nonNull).collect(Collectors.toList());
     if (!points.isEmpty()) {
+      // Entscheidung: Wenn mehrere Zonen zutreffen, gewinnt die naechstgelegene Zone.
       ProtectionPoint closestInside = points.stream()
           .filter(point -> distance(point.x, point.y, point.z, request.x, request.y, request.z) <= point.radius)
           .min(Comparator.comparingDouble(point -> distance(point.x, point.y, point.z, request.x, request.y, request.z)))
@@ -109,7 +110,7 @@ public class ProtectionService {
   }
 
   private void logDenied(ProtectionCheckRequest request, ProtectionZoneResult zone) {
-    if (logger == null) {
+    if (logger == null || !config.debugLog) {
       return;
     }
     String key = request.actorId + ":" + request.action;

@@ -13,8 +13,12 @@ import com.efd.hytale.farmworld.server.commands.FarmWorldCommands;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerConfigData;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerRespawnPointData;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.DrainPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
@@ -53,6 +57,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     logger.info("[FarmWorld] Plugin wird eingerichtet...");
     ConfigManager configManager = new ConfigManager(logger);
     config = configManager.load();
+    logger.info("[FarmWorld] Konfiguration geladen.");
     for (String issue : ConfigValidator.validateSevere(config)) {
       logger.severe(issue);
     }
@@ -252,9 +257,32 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (!world.getName().equalsIgnoreCase(spawn.worldId)) {
       return;
     }
+    applyRespawnPoint(player, world, spawn);
     if (player.getReference() == null) {
       return;
     }
     player.moveTo(player.getReference(), spawn.x, spawn.y, spawn.z, world.getEntityStore().getStore());
+  }
+
+  private void applyRespawnPoint(Player player, World world, com.efd.hytale.farmworld.shared.config.FarmWorldSpawn spawn) {
+    if (player == null || world == null || spawn == null) {
+      return;
+    }
+    PlayerConfigData configData = player.getPlayerConfigData();
+    if (configData == null) {
+      return;
+    }
+    PlayerWorldData worldData = configData.getPerWorldData(world.getName());
+    if (worldData == null) {
+      return;
+    }
+    Vector3i blockPos = new Vector3i(
+        (int) Math.round(spawn.x),
+        (int) Math.round(spawn.y),
+        (int) Math.round(spawn.z));
+    PlayerRespawnPointData respawnPoint = new PlayerRespawnPointData(blockPos, new Vector3d(spawn.x, spawn.y, spawn.z),
+        "FarmWorld-Spawn");
+    worldData.setRespawnPoints(new PlayerRespawnPointData[] { respawnPoint });
+    configData.markChanged();
   }
 }

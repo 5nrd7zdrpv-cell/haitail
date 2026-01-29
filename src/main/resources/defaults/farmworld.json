@@ -16,6 +16,7 @@
   "nextResetEpochSeconds": 1769472383,
   "protection": {
     "enabled": true,
+    "debugLog": false,
     "radius": 64,
     "center": null,
     "points": [],
