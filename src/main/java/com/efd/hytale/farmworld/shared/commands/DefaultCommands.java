@@ -39,6 +39,7 @@ public class DefaultCommands {
                 case "status" -> CommandResult.ok(formatFarmStatus(farmWorldService));
                 case "reset" -> handleFarmReset(context.args, farmWorldService);
                 case "setspawn" -> handleFarmSetSpawn(context.args, farmWorldService);
+                case "save" -> handleFarmSave(context.args, farmWorldService);
                 default -> CommandResult.error(CommandMessages.error("Unbekannter Farm-Befehl: " + action));
               };
             }));
@@ -102,6 +103,7 @@ public class DefaultCommands {
         "  /farm reset now",
         "  /farm reset schedule",
         "  /farm setspawn <x> <y> <z> [worldId] [instanceId]",
+        "  /farm save [prefabId] [radius]",
         "  /farm setspawn self");
   }
 
@@ -185,6 +187,26 @@ public class DefaultCommands {
         CommandMessages.formatCoordinate(x) + " " +
         CommandMessages.formatCoordinate(y) + " " +
         CommandMessages.formatCoordinate(z) + "."));
+  }
+
+  private static CommandResult handleFarmSave(List<String> args, FarmWorldService farmWorldService) {
+    String prefabId = args.size() > 1 ? args.get(1) : null;
+    Integer radius = null;
+    if (args.size() > 2) {
+      try {
+        radius = Integer.parseInt(args.get(2));
+      } catch (NumberFormatException ex) {
+        return CommandResult.error(CommandMessages.error("Radius muss eine Zahl sein."));
+      }
+    }
+    boolean saved = farmWorldService.savePrefab(prefabId, radius);
+    if (!saved) {
+      return CommandResult.error(CommandMessages.error("Prefab konnte nicht gespeichert werden. Bitte Logs prüfen."));
+    }
+    String savedName = prefabId != null && !prefabId.isBlank()
+        ? prefabId
+        : farmWorldService.getConfig().farmWorld.prefabSpawnId;
+    return CommandResult.ok(CommandMessages.success("Prefab gespeichert: " + savedName + "."));
   }
 
   private static CommandResult handleCombatStatus(

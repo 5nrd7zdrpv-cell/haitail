@@ -4,9 +4,12 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.prefab.PrefabStore;
 import com.hypixel.hytale.server.core.prefab.selection.standard.BlockSelection;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -164,6 +167,82 @@ public class ServerFarmWorldWorldAdapter extends LoggingFarmWorldWorldAdapter {
     } catch (RuntimeException ex) {
       if (logger != null) {
         logger.log(Level.WARNING, "[FarmWorld] Prefab konnte nicht platziert werden.", ex);
+      }
+      return false;
+    }
+  }
+
+  @Override
+  public boolean savePrefab(String prefabSpawnId, com.efd.hytale.farmworld.shared.config.FarmWorldSpawn centerPosition,
+      int radius) {
+    if (prefabSpawnId == null || prefabSpawnId.isBlank() || centerPosition == null) {
+      if (logger != null) {
+        logger.warning("[FarmWorld] Prefab-Speichern abgebrochen: Prefab oder Zentrum ist leer.");
+      }
+      return false;
+    }
+    Universe universe = Universe.get();
+    if (universe == null) {
+      if (logger != null) {
+        logger.warning("[FarmWorld] Prefab-Speichern abgebrochen: Universe nicht verfügbar.");
+      }
+      return false;
+    }
+    String worldId = centerPosition.worldId == null ? "" : centerPosition.worldId.trim();
+    String instanceId = centerPosition.instanceId == null ? "" : centerPosition.instanceId.trim();
+    World world = universe.getWorld(worldId);
+    if (world == null && !instanceId.isBlank()) {
+      world = universe.getWorld(worldId + "/" + instanceId);
+      if (world == null) {
+        world = universe.getWorld(worldId + ":" + instanceId);
+      }
+    }
+    if (world == null) {
+      if (logger != null) {
+        logger.warning("[FarmWorld] Prefab-Speichern abgebrochen: Welt nicht gefunden (" +
+            worldId + "/" + instanceId + ").");
+      }
+      return false;
+    }
+    int resolvedRadius = Math.max(1, radius);
+    int centerX = (int) Math.round(centerPosition.x);
+    int centerY = (int) Math.round(centerPosition.y);
+    int centerZ = (int) Math.round(centerPosition.z);
+    int minX = centerX - resolvedRadius;
+    int maxX = centerX + resolvedRadius;
+    int minZ = centerZ - resolvedRadius;
+    int maxZ = centerZ + resolvedRadius;
+    int minY = Math.max(ChunkUtil.MIN_Y, centerY - resolvedRadius);
+    int maxY = Math.min(ChunkUtil.MIN_Y + ChunkUtil.HEIGHT - 1, centerY + resolvedRadius);
+
+    BlockSelection selection = new BlockSelection();
+    selection.setSelectionArea(new Vector3i(minX, minY, minZ), new Vector3i(maxX, maxY, maxZ));
+    selection.setAnchorAtWorldPos(centerX, centerY, centerZ);
+
+    for (int x = minX; x <= maxX; x++) {
+      for (int z = minZ; z <= maxZ; z++) {
+        for (int y = minY; y <= maxY; y++) {
+          int blockId = world.getBlock(x, y, z);
+          if (blockId == 0) {
+            continue;
+          }
+          int rotation = world.getBlockRotationIndex(x, y, z);
+          Holder<ChunkStore> blockComponent = world.getBlockComponentHolder(x, y, z);
+          if (blockComponent != null) {
+            selection.addBlockAtWorldPos(x, y, z, blockId, rotation, 0, 0, blockComponent);
+          } else {
+            selection.addBlockAtWorldPos(x, y, z, blockId, rotation, 0, 0);
+          }
+        }
+      }
+    }
+
+    try {
+      PrefabStore.get().saveServerPrefab(prefabSpawnId, selection, true);
+      return true;
+    } catch (RuntimeException ex) {
+      if (logger != null) {
+        logger.log(Level.WARNING, "[FarmWorld] Prefab konnte nicht gespeichert werden.", ex);
       }
       return false;
     }

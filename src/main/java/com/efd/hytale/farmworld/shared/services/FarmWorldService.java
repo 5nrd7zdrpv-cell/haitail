@@ -84,6 +84,29 @@ public class FarmWorldService {
     configStore.save(config);
   }
 
+  public boolean savePrefab(String prefabIdOverride, Integer radiusOverride) {
+    String prefabId = prefabIdOverride != null && !prefabIdOverride.isBlank()
+        ? prefabIdOverride
+        : config.farmWorld.prefabSpawnId;
+    if (prefabId == null || prefabId.isBlank()) {
+      if (logger != null) {
+        logger.warning("[FarmWorld] Prefab-Speichern abgebrochen: prefabSpawnId fehlt.");
+      }
+      return false;
+    }
+    int radius = radiusOverride != null && radiusOverride > 0
+        ? radiusOverride
+        : Math.max(1, config.protection.radius);
+    FarmWorldSpawn center = config.protection.center != null ? config.protection.center : config.farmWorld.spawn;
+    FarmWorldSpawn resolvedCenter = resolveSpawn(center);
+    boolean saved = worldAdapter.savePrefab(prefabId, resolvedCenter, radius);
+    if (saved && prefabIdOverride != null && !prefabIdOverride.isBlank()) {
+      config.farmWorld.prefabSpawnId = prefabIdOverride;
+      configStore.save(config);
+    }
+    return saved;
+  }
+
   public FarmWorldConfig getConfig() {
     return config;
   }
