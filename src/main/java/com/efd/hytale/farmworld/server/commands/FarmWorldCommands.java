@@ -123,6 +123,9 @@ public final class FarmWorldCommands {
         return commandName;
       }
       String trimmed = input.trim();
+      if (trimmed.startsWith("/")) {
+        trimmed = trimmed.substring(1).trim();
+      }
       if (trimmed.toLowerCase(Locale.ROOT).startsWith(commandName + " ")) {
         return trimmed;
       }
