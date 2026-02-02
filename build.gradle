@@ -17,6 +17,36 @@ dependencies {
   testImplementation 'org.junit.jupiter:junit-jupiter:5.11.2'
 }
 
+def hytaleServerJar = file('libs/HytaleServer.jar')
+def requiredHytaleEntries = [
+  'com/hypixel/hytale/component/ArchetypeChunk.class',
+  'com/hypixel/hytale/component/CommandBuffer.class',
+  'com/hypixel/hytale/component/query/Query.class',
+  'com/hypixel/hytale/server/core/plugin/JavaPlugin.class',
+  'com/hypixel/hytale/server/core/universe/world/World.class'
+]
+
+tasks.register('verifyHytaleServerJar') {
+  doLast {
+    if (!hytaleServerJar.exists()) {
+      throw new GradleException("Missing ${hytaleServerJar}. Place the correct HytaleServer.jar in libs/.")
+    }
+
+    def jarFile = new java.util.jar.JarFile(hytaleServerJar)
+    try {
+      def missingEntries = requiredHytaleEntries.findAll { jarFile.getEntry(it) == null }
+      if (!missingEntries.isEmpty()) {
+        throw new GradleException(
+          "HytaleServer.jar is missing required classes:\n- ${missingEntries.join('\n- ')}\n" +
+          "Replace libs/HytaleServer.jar with the correct server API jar."
+        )
+      }
+    } finally {
+      jarFile.close()
+    }
+  }
+}
+
 test {
   useJUnitPlatform()
 }
@@ -27,6 +57,10 @@ tasks.withType(Copy).configureEach {
 
 tasks.withType(JavaCompile).configureEach {
   options.encoding = 'UTF-8'
+}
+
+tasks.named('compileJava') {
+  dependsOn tasks.named('verifyHytaleServerJar')
 }
 
 tasks.withType(Jar).configureEach {
