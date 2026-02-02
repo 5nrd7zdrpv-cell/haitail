@@ -293,10 +293,17 @@ public final class FarmWorldCommands {
     }
 
     private Player resolvePlayer(CommandContext context) {
-      if (context == null || !context.isPlayer()) {
+      if (context == null) {
         return null;
       }
-      return context.senderAs(Player.class);
+      if (context.isPlayer()) {
+        return context.senderAs(Player.class);
+      }
+      CommandSender sender = context.sender();
+      if (sender instanceof Player player) {
+        return player;
+      }
+      return null;
     }
 
     private Vector3d resolvePosition(Player player) {
