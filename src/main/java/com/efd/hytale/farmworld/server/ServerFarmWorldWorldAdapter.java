@@ -123,17 +123,12 @@ public class ServerFarmWorldWorldAdapter extends LoggingFarmWorldWorldAdapter {
     }
     String worldId = spawnPosition.worldId == null ? "" : spawnPosition.worldId.trim();
     String instanceId = spawnPosition.instanceId == null ? "" : spawnPosition.instanceId.trim();
-    World world = universe.getWorld(worldId);
-    if (world == null && !instanceId.isBlank()) {
-      world = universe.getWorld(worldId + "/" + instanceId);
-      if (world == null) {
-        world = universe.getWorld(worldId + ":" + instanceId);
-      }
-    }
+    java.util.List<String> triedWorlds = new java.util.ArrayList<>();
+    World world = resolveWorld(universe, worldId, instanceId, triedWorlds);
     if (world == null) {
       if (logger != null) {
         logger.warning("[FarmWorld] Prefab-Laden abgebrochen: Welt nicht gefunden (" +
-            worldId + "/" + instanceId + ").");
+            worldId + "/" + instanceId + "). Versucht: " + String.join(", ", triedWorlds) + ".");
       }
       return false;
     }
@@ -190,17 +185,12 @@ public class ServerFarmWorldWorldAdapter extends LoggingFarmWorldWorldAdapter {
     }
     String worldId = centerPosition.worldId == null ? "" : centerPosition.worldId.trim();
     String instanceId = centerPosition.instanceId == null ? "" : centerPosition.instanceId.trim();
-    World world = universe.getWorld(worldId);
-    if (world == null && !instanceId.isBlank()) {
-      world = universe.getWorld(worldId + "/" + instanceId);
-      if (world == null) {
-        world = universe.getWorld(worldId + ":" + instanceId);
-      }
-    }
+    java.util.List<String> triedWorlds = new java.util.ArrayList<>();
+    World world = resolveWorld(universe, worldId, instanceId, triedWorlds);
     if (world == null) {
       if (logger != null) {
         logger.warning("[FarmWorld] Prefab-Speichern abgebrochen: Welt nicht gefunden (" +
-            worldId + "/" + instanceId + ").");
+            worldId + "/" + instanceId + "). Versucht: " + String.join(", ", triedWorlds) + ".");
       }
       return false;
     }
@@ -293,5 +283,63 @@ public class ServerFarmWorldWorldAdapter extends LoggingFarmWorldWorldAdapter {
       }
       throw ex;
     }
+  }
+
+  private World resolveWorld(Universe universe, String worldId, String instanceId, java.util.List<String> triedWorlds) {
+    if (universe == null) {
+      return null;
+    }
+    String resolvedWorldId = worldId == null ? "" : worldId.trim();
+    String resolvedInstanceId = instanceId == null ? "" : instanceId.trim();
+    if (resolvedWorldId.isBlank()) {
+      return null;
+    }
+    String baseWorldId = resolvedWorldId;
+    int slashIndex = resolvedWorldId.indexOf('/');
+    int colonIndex = resolvedWorldId.indexOf(':');
+    int separatorIndex = slashIndex >= 0 && colonIndex >= 0
+        ? Math.min(slashIndex, colonIndex)
+        : Math.max(slashIndex, colonIndex);
+    if (separatorIndex > 0 && separatorIndex < resolvedWorldId.length() - 1) {
+      baseWorldId = resolvedWorldId.substring(0, separatorIndex);
+      if (resolvedInstanceId.isBlank()) {
+        resolvedInstanceId = resolvedWorldId.substring(separatorIndex + 1);
+      }
+    }
+    if (triedWorlds != null) {
+      triedWorlds.add(resolvedWorldId);
+    }
+    World world = universe.getWorld(resolvedWorldId);
+    if (world != null) {
+      return world;
+    }
+    if (!baseWorldId.equals(resolvedWorldId)) {
+      if (triedWorlds != null) {
+        triedWorlds.add(baseWorldId);
+      }
+      world = universe.getWorld(baseWorldId);
+      if (world != null) {
+        return world;
+      }
+    }
+    if (!resolvedInstanceId.isBlank()) {
+      String composedSlash = baseWorldId + "/" + resolvedInstanceId;
+      if (triedWorlds != null) {
+        triedWorlds.add(composedSlash);
+      }
+      world = universe.getWorld(composedSlash);
+      if (world != null) {
+        return world;
+      }
+      String composedColon = baseWorldId + ":" + resolvedInstanceId;
+      if (triedWorlds != null) {
+        triedWorlds.add(composedColon);
+      }
+      world = universe.getWorld(composedColon);
+      if (world != null) {
+        return world;
+      }
+    }
+    return null;
   }
 }
