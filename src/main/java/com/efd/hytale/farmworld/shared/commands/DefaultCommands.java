@@ -134,8 +134,11 @@ public class DefaultCommands {
     String resetMode = args.get(1).toLowerCase(Locale.ROOT);
     switch (resetMode) {
       case "now" -> {
-        farmWorldService.resetNow();
-        return CommandResult.ok(CommandMessages.success("Farmwelt-Reset wurde gestartet."));
+        boolean resetOk = farmWorldService.resetNow();
+        if (resetOk) {
+          return CommandResult.ok(CommandMessages.success("Farmwelt-Reset wurde gestartet."));
+        }
+        return CommandResult.error(CommandMessages.error("Farmwelt-Reset fehlgeschlagen. Bitte Logs prüfen."));
       }
       case "schedule" -> {
         Instant nextReset = farmWorldService.scheduleNextReset();

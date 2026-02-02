@@ -40,12 +40,24 @@ public class ServerFarmWorldWorldAdapter extends LoggingFarmWorldWorldAdapter {
       return false;
     }
     String resolvedWorldId = worldId.trim();
+    String resolvedInstanceId = instanceId == null ? "" : instanceId.trim();
+    int slashIndex = resolvedWorldId.indexOf('/');
+    int colonIndex = resolvedWorldId.indexOf(':');
+    int separatorIndex = slashIndex >= 0 && colonIndex >= 0
+        ? Math.min(slashIndex, colonIndex)
+        : Math.max(slashIndex, colonIndex);
+    if (separatorIndex > 0 && separatorIndex < resolvedWorldId.length() - 1) {
+      if (resolvedInstanceId.isBlank()) {
+        resolvedInstanceId = resolvedWorldId.substring(separatorIndex + 1);
+      }
+      resolvedWorldId = resolvedWorldId.substring(0, separatorIndex);
+    }
     World world = universe.getWorld(resolvedWorldId);
-    if (world == null && instanceId != null && !instanceId.isBlank()) {
-      String composedId = resolvedWorldId + "/" + instanceId.trim();
+    if (world == null && !resolvedInstanceId.isBlank()) {
+      String composedId = resolvedWorldId + "/" + resolvedInstanceId;
       world = universe.getWorld(composedId);
       if (world == null) {
-        composedId = resolvedWorldId + ":" + instanceId.trim();
+        composedId = resolvedWorldId + ":" + resolvedInstanceId;
         world = universe.getWorld(composedId);
       }
       if (world != null) {

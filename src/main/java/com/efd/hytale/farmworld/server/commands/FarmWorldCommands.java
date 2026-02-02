@@ -1,6 +1,7 @@
 package com.efd.hytale.farmworld.server.commands;
 
 import com.efd.hytale.farmworld.server.CommandBridge;
+import com.efd.hytale.farmworld.server.ProtectionPermissionHelper;
 import com.efd.hytale.farmworld.shared.commands.CommandRegistry;
 import com.efd.hytale.farmworld.shared.commands.CommandMessages;
 import com.efd.hytale.farmworld.shared.commands.CommandResult;
@@ -226,12 +227,14 @@ public final class FarmWorldCommands {
       if (position == null || player.getWorld() == null) {
         return CommandResult.error(CommandMessages.error("Position konnte nicht ermittelt werden."));
       }
+      ProtectionPermissionHelper.ResolvedWorld resolvedWorld =
+          ProtectionPermissionHelper.resolveWorld(player.getWorld(), config);
       String rawCommand = buildCommand("farm", "setspawn",
           String.valueOf(position.x),
           String.valueOf(position.y),
           String.valueOf(position.z),
-          player.getWorld().getName(),
-          config.farmWorld.instanceId);
+          resolvedWorld.worldId,
+          resolvedWorld.instanceId);
       return bridge.handleCommand(actorId, rawCommand);
     }
 
