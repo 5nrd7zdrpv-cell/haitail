@@ -1,7 +1,6 @@
 package com.efd.hytale.farmworld.server.commands;
 
 import com.efd.hytale.farmworld.server.CommandBridge;
-import com.efd.hytale.farmworld.server.PlayerRefResolver;
 import com.efd.hytale.farmworld.shared.commands.CommandRegistry;
 import com.efd.hytale.farmworld.shared.commands.CommandMessages;
 import com.efd.hytale.farmworld.shared.commands.CommandResult;
@@ -14,7 +13,6 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import java.util.Locale;
 import java.util.StringJoiner;
@@ -149,16 +147,6 @@ public final class FarmWorldCommands {
     private void recordPlayer(CommandSender sender) {
       if (combatService == null || sender == null) {
         return;
-      }
-      if (sender instanceof Player player) {
-        var playerRef = PlayerRefResolver.fromPlayer(player);
-        if (playerRef != null) {
-          String username = playerRef.getUsername();
-          if (playerRef.getUuid() != null && username != null && !username.isBlank()) {
-            combatService.recordPlayer(playerRef.getUuid(), username);
-            return;
-          }
-        }
       }
       if (sender.getUuid() == null || sender.getDisplayName() == null || sender.getDisplayName().isBlank()) {
         return;
@@ -312,15 +300,11 @@ public final class FarmWorldCommands {
       if (player == null) {
         return null;
       }
-      var playerRef = PlayerRefResolver.fromPlayer(player);
-      if (playerRef == null) {
+      var transformComponent = player.getTransformComponent();
+      if (transformComponent == null) {
         return null;
       }
-      Transform transform = playerRef.getTransform();
-      if (transform == null) {
-        return null;
-      }
-      return transform.getPosition();
+      return transformComponent.getPosition();
     }
 
     private String buildCommand(String... parts) {
