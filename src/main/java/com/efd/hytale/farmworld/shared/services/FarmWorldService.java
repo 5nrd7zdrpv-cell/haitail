@@ -63,8 +63,8 @@ public class FarmWorldService {
         lastCheck);
   }
 
-  public void resetNow() {
-    resetWorld(Instant.now());
+  public boolean resetNow() {
+    return resetWorld(Instant.now());
   }
 
   public Instant scheduleNextReset() {
@@ -114,13 +114,19 @@ public class FarmWorldService {
         config.farmWorld.resetIntervalDays + " Tage).");
   }
 
-  private void resetWorld(Instant now) {
+  private boolean resetWorld(Instant now) {
     if (logger != null) {
       logger.info("[FarmWorld] Farmwelt wird zurückgesetzt...");
     }
     boolean resetOk = worldAdapter.resetWorld(config.farmWorld.worldId, config.farmWorld.instanceId);
     if (resetOk && logger != null) {
       logger.info("[FarmWorld] Farmwelt wurde entladen/zurückgesetzt.");
+    }
+    if (!resetOk) {
+      if (logger != null) {
+        logger.warning("[FarmWorld] Reset fehlgeschlagen.");
+      }
+      return false;
     }
     if (resetOk) {
       if (config.farmWorld.prefabSpawnId == null || config.farmWorld.prefabSpawnId.isBlank()) {
@@ -143,6 +149,7 @@ public class FarmWorldService {
     if (logger != null) {
       logger.info("[FarmWorld] Reset abgeschlossen");
     }
+    return true;
   }
 
   private FarmWorldSpawn resolveSpawn(FarmWorldSpawn spawn) {
