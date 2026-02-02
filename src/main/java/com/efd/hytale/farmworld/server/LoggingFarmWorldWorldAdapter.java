@@ -24,4 +24,13 @@ public class LoggingFarmWorldWorldAdapter implements FarmWorldWorldAdapter {
         " (" + spawnPosition.x + ", " + spawnPosition.y + ", " + spawnPosition.z + ").");
     return true;
   }
+
+  @Override
+  public boolean savePrefab(String prefabSpawnId, FarmWorldSpawn centerPosition, int radius) {
+    logger.info("[FarmWorld] Speichere Prefab " + prefabSpawnId + " bei " +
+        centerPosition.worldId + "/" + centerPosition.instanceId +
+        " (" + centerPosition.x + ", " + centerPosition.y + ", " + centerPosition.z +
+        "), Radius " + radius + ".");
+    return true;
+  }
 }

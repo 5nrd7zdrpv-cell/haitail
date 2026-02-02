@@ -30,6 +30,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
@@ -47,6 +50,7 @@ public class FarmWorldPlugin extends JavaPlugin {
   private CommandBridge commandBridge;
   private CombatBridge combatBridge;
   private ProtectionBridge protectionBridge;
+  private final Set<UUID> spawnAppliedPlayers = ConcurrentHashMap.newKeySet();
 
   public FarmWorldPlugin(JavaPluginInit init) {
     super(init);
@@ -184,7 +188,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (playerRef != null) {
       combatService.recordPlayer(playerRef.getUuid(), playerRef.getUsername());
     }
-    applySpawn(player, event.getPlayer().getWorld());
+    applySpawn(player, event.getPlayer().getWorld(), true);
   }
 
   private void onPlayerAddedToWorld(AddPlayerToWorldEvent event) {
@@ -192,7 +196,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (player == null) {
       return;
     }
-    applySpawn(player, event.getWorld());
+    applySpawn(player, event.getWorld(), false);
   }
 
   private void onPlayerDisconnect(PlayerDisconnectEvent event) {
@@ -200,6 +204,7 @@ public class FarmWorldPlugin extends JavaPlugin {
     if (playerRef == null) {
       return;
     }
+    spawnAppliedPlayers.remove(playerRef.getUuid());
     if (combatService.isInCombat(playerRef.getUuid())) {
       logger.warning("[FarmWorld] Combat-Logout: " + playerRef.getUsername());
     }
@@ -251,8 +256,12 @@ public class FarmWorldPlugin extends JavaPlugin {
     event.setTransform(new Transform(new Vector3d(spawn.x, spawn.y, spawn.z), rotation));
   }
 
-  private void applySpawn(Player player, World world) {
+  private void applySpawn(Player player, World world, boolean force) {
     if (player == null || world == null) {
+      return;
+    }
+    PlayerRef playerRef = PlayerRefResolver.fromPlayer(player);
+    if (!force && playerRef != null && spawnAppliedPlayers.contains(playerRef.getUuid())) {
       return;
     }
     com.efd.hytale.farmworld.shared.config.FarmWorldSpawn spawn = farmWorldService.resolveSpawn();
@@ -264,6 +273,9 @@ public class FarmWorldPlugin extends JavaPlugin {
       return;
     }
     player.moveTo(player.getReference(), spawn.x, spawn.y, spawn.z, world.getEntityStore().getStore());
+    if (playerRef != null) {
+      spawnAppliedPlayers.add(playerRef.getUuid());
+    }
   }
 
   private void applyRespawnPoint(Player player, World world, com.efd.hytale.farmworld.shared.config.FarmWorldSpawn spawn) {
