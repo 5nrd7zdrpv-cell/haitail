@@ -40,6 +40,11 @@ public final class CommandRegistrySelfTest {
       public boolean loadPrefab(String prefabSpawnId, com.efd.hytale.farmworld.shared.config.FarmWorldSpawn spawnPosition) {
         return true;
       }
+
+      @Override
+      public boolean savePrefab(String prefabSpawnId, com.efd.hytale.farmworld.shared.config.FarmWorldSpawn centerPosition, int radius) {
+        return true;
+      }
     };
     FarmWorldService farmWorldService = new FarmWorldService(
         config,
