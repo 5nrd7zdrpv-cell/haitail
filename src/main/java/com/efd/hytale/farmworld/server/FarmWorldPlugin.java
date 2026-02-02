@@ -211,13 +211,15 @@ public class FarmWorldPlugin extends JavaPlugin {
       return;
     }
     String actorName = ProtectionPermissionHelper.resolveActorName(player);
+    ProtectionPermissionHelper.ResolvedWorld resolvedWorld =
+        ProtectionPermissionHelper.resolveWorld(player.getWorld(), config);
     boolean allowed = protectionBridge.onInteract(
         actorName,
         event.getTargetBlock().x,
         event.getTargetBlock().y,
         event.getTargetBlock().z,
-        player.getWorld().getName(),
-        config.farmWorld.instanceId,
+        resolvedWorld.worldId,
+        resolvedWorld.instanceId,
         ProtectionPermissionHelper.collectBypassPermissions(player, config),
         List.of());
     if (!allowed) {

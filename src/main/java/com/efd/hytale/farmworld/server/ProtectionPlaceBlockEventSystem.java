@@ -36,13 +36,15 @@ public class ProtectionPlaceBlockEventSystem extends EntityEventSystem<EntitySto
     }
     Vector3i target = event.getTargetBlock();
     String actorName = ProtectionPermissionHelper.resolveActorName(player);
+    ProtectionPermissionHelper.ResolvedWorld resolvedWorld =
+        ProtectionPermissionHelper.resolveWorld(player.getWorld(), config);
     boolean allowed = protectionBridge.onBlockPlace(
         actorName,
         target.x,
         target.y,
         target.z,
-        player.getWorld().getName(),
-        config.farmWorld.instanceId,
+        resolvedWorld.worldId,
+        resolvedWorld.instanceId,
         ProtectionPermissionHelper.collectBypassPermissions(player, config),
         List.of());
     if (!allowed) {
