@@ -125,7 +125,15 @@ public class ServerFarmWorldWorldAdapter extends LoggingFarmWorldWorldAdapter {
     PrefabStore prefabStore = PrefabStore.get();
     BlockSelection prefab = prefabStore.getAssetPrefabFromAnyPack(prefabSpawnId);
     if (prefab == null) {
-      prefab = prefabStore.getServerPrefab(prefabSpawnId);
+      try {
+        prefab = prefabStore.getServerPrefab(prefabSpawnId);
+      } catch (RuntimeException ex) {
+        if (logger != null) {
+          logger.log(Level.WARNING, "[FarmWorld] Prefab-Laden abgebrochen: Prefab nicht gefunden (" +
+              prefabSpawnId + ").", ex);
+        }
+        return false;
+      }
     }
     if (prefab == null) {
       if (logger != null) {
