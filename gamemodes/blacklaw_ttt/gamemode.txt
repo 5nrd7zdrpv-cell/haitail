@@ -1,0 +1,7 @@
+"Blacklaw Trouble in Terrorist Town"
+{
+  "base" "sandbox"
+  "title" "Blacklaw TTT"
+  "maps" "*"
+  "menusystem" "1"
+}
